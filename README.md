@@ -2,9 +2,25 @@
 
 ![i18ntk Lens icon](media/icon.png)
 
-A lightweight local-first VS Code extension for inline i18ntk visibility: hover translations, CodeLens indicators, missing-key warnings, unused-key diagnostics, key navigation, and workspace settings.
+[![VS Code Marketplace](https://img.shields.io/badge/VS_Code-i18ntk_Lens-007ACC?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=VladNoskov.i18ntk-lens)
+[![npm version](https://img.shields.io/npm/v/i18ntk.svg?color=brightgreen)](https://www.npmjs.com/package/i18ntk)
+[![npm downloads](https://img.shields.io/npm/dt/i18ntk.svg)](https://www.npmjs.com/package/i18ntk)
+[![node](https://img.shields.io/badge/node-%3E%3D16-339933)](https://nodejs.org)
+[![dependencies](https://img.shields.io/badge/i18ntk_dependencies-0-success)](https://www.npmjs.com/package/i18ntk)
 
-i18ntk Lens is standalone. It does not add an Activity Bar container, so if i18ntk Workbench is installed too, Workbench remains the single i18ntk sidebar icon while Lens keeps providing inline editor feedback.
+i18ntk Lens adds fast inline translation visibility to VS Code: hover values, CodeLens coverage hints, missing-key warnings, unused-key diagnostics, key navigation, and workspace settings.
+
+It is a lightweight companion to the zero-dependency `i18ntk` npm package. Lens is standalone and does not add an Activity Bar container, so if i18ntk Workbench is installed too, Workbench remains the single i18ntk sidebar while Lens keeps the editor feedback close to your code.
+
+## i18ntk CLI Companion
+
+The main `i18ntk` npm package powers the broader workflow:
+
+- setup, scan, analyze, validate, usage, sizing, completion, summary, backup, fixer, and Auto Translate commands
+- zero runtime dependencies
+- Node.js `>=16.0.0`
+- local-first operation, with provider network calls only when you run Auto Translate
+- public npm stats and package health through the badges above
 
 ## Install
 
@@ -30,7 +46,7 @@ Requirements:
 4. Use CodeLens or `i18ntk Lens: Open Key in Locale Files` to jump to locale files.
 5. Use `i18ntk Lens: Open Settings` to configure locale discovery, source locale, scan limits, exclusions, and custom wrappers.
 
-## Features
+## What You Get
 
 - **Hover translations**: shows values for `t("key")`, `i18n.t("key")`, `translate("key")`, `$t("key")`, and configured custom wrappers.
 - **CodeLens indicators**: shows whether target locales are missing for each detected key.
