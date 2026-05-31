@@ -33,14 +33,21 @@ export interface LensScanResult {
 }
 
 const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx', '.vue', '.svelte', '.html']);
-const KEY_PATTERNS = [
-  /\bt\s*\(\s*(['"`])([^'"`]+)\1/g,
+const KNOWN_WRAPPERS = [
+  /\b(?<![\w.])t\s*\(\s*(['"`])([^'"`]+)\1/g,
   /\bi18n\.t\s*\(\s*(['"`])([^'"`]+)\1/g,
   /\btranslate\s*\(\s*(['"`])([^'"`]+)\1/g,
-  /\$t\s*\(\s*(['"`])([^'"`]+)\1/g
+  /\$t\s*\(\s*(['"`])([^'"`]+)\1/g,
+  /\btx\s*\(\s*(['"`])([^'"`]+)\1/g,
+  /\b__\s*\(\s*(['"`])([^'"`]+)\1/g,
+  /\b_t\s*\(\s*(['"`])([^'"`]+)\1/g,
+  /\b__t\s*\(\s*(['"`])([^'"`]+)\1/g,
+  /\bi18n\s*\(\s*(['"`])([^'"`]+)\1/g,
 ];
 
-export async function scanWorkspace(config: LensConfig): Promise<LensScanResult> {
+const GENERIC_KEY_PATTERN = /\b[a-zA-Z_$][\w$]*\s*\(\s*(['"`])([a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)+)\1/g;
+
+export async function scanWorkspace(config: LensConfig, customWrappers: string[] = []): Promise<LensScanResult> {
   const localeFiles = await discoverLocaleFiles(config.localeDirectory);
   const locales = [...new Set(localeFiles.map((file) => file.locale))].sort();
   const keyValues: Record<string, Record<string, string>> = {};
@@ -56,7 +63,7 @@ export async function scanWorkspace(config: LensConfig): Promise<LensScanResult>
   const usages = [];
   for (const filePath of sourceFiles) {
     const text = await fs.promises.readFile(filePath, 'utf8').catch(() => '');
-    for (const match of findTranslationKeys(text)) {
+    for (const match of findTranslationKeys(text, customWrappers)) {
       usages.push({ key: match.key, filePath, range: match.range });
     }
   }
@@ -75,9 +82,14 @@ export async function scanWorkspace(config: LensConfig): Promise<LensScanResult>
   return { locales, keyValues, keyFiles, usages, missing, unused };
 }
 
-export function findTranslationKeys(text: string): KeyMatch[] {
+export function findTranslationKeys(text: string, customWrappers: string[] = []): KeyMatch[] {
+  const allPatterns = [...KNOWN_WRAPPERS];
+  for (const name of customWrappers) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    allPatterns.push(new RegExp(`\\b${escaped}\\s*\\(\\s*(['\x60"])([^'"\x60]+)\\1`, 'g'));
+  }
   const matches: KeyMatch[] = [];
-  for (const pattern of KEY_PATTERNS) {
+  for (const pattern of allPatterns) {
     pattern.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(text)) !== null) {
@@ -87,11 +99,30 @@ export function findTranslationKeys(text: string): KeyMatch[] {
       matches.push({ key, start, end, range: rangeFromOffsets(text, start, end) });
     }
   }
-  return matches.sort((a, b) => a.start - b.start);
+  GENERIC_KEY_PATTERN.lastIndex = 0;
+  let gMatch: RegExpExecArray | null;
+  while ((gMatch = GENERIC_KEY_PATTERN.exec(text)) !== null) {
+    const key = gMatch[2];
+    if (/^(if|for|while|return|function|class|const|let|var|import|export|new|typeof|instanceof|delete|void)$/.test(key)) continue;
+    const start = gMatch.index + gMatch[0].indexOf(key);
+    const end = start + key.length;
+    matches.push({ key, start, end, range: rangeFromOffsets(text, start, end) });
+  }
+  return dedupe(matches).sort((a, b) => a.start - b.start);
 }
 
-export function findTranslationKeyAt(text: string, offset: number): KeyMatch | undefined {
-  return findTranslationKeys(text).find((match) => offset >= match.start && offset <= match.end);
+function dedupe(matches: KeyMatch[]): KeyMatch[] {
+  const seen = new Set<string>();
+  return matches.filter((m) => {
+    const id = `${m.start}:${m.end}:${m.key}`;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+export function findTranslationKeyAt(text: string, offset: number, customWrappers: string[] = []): KeyMatch | undefined {
+  return findTranslationKeys(text, customWrappers).find((match) => offset >= match.start && offset <= match.end);
 }
 
 async function discoverLocaleFiles(localeDirectory: string): Promise<Array<{ locale: string; filePath: string; values: Record<string, string> }>> {

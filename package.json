@@ -50,6 +50,12 @@
           "default": ["node_modules", ".git", ".next", "dist", "build", "coverage"],
           "items": { "type": "string" },
           "description": "Folder or file name fragments excluded from scans."
+        },
+        "i18ntkLens.customWrappers": {
+          "type": "array",
+          "default": [],
+          "items": { "type": "string" },
+          "description": "Custom translation wrapper function names (e.g. tx, __, _t). Auto-detects dot-separated keys in any function call."
         }
       }
     },
@@ -62,6 +68,11 @@
       {
         "command": "i18ntkLens.openKeyInLocaleFiles",
         "title": "i18ntk Lens: Open Key in Locale Files",
+        "category": "i18ntk Lens"
+      },
+      {
+        "command": "i18ntkLens.openSettings",
+        "title": "i18ntk Lens: Open Settings",
         "category": "i18ntk Lens"
       }
     ]
