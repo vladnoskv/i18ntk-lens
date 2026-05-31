@@ -9,6 +9,7 @@ const manifest = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'package
   contributes?: {
     viewsContainers?: unknown;
     commands?: Array<{ command: string }>;
+    configuration?: { properties?: Record<string, { default?: unknown; items?: { enum?: string[] } }> };
   };
   scripts?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -21,6 +22,13 @@ test('manifest keeps Lens standalone without adding a second Activity Bar icon',
     manifest.contributes?.commands?.map((entry) => entry.command).sort(),
     ['i18ntkLens.openKeyInLocaleFiles', 'i18ntkLens.openSettings', 'i18ntkLens.scan']
   );
+});
+
+test('manifest exposes configurable key formats', () => {
+  const keyFormats = manifest.contributes?.configuration?.properties?.['i18ntkLens.keyFormats'];
+
+  assert.deepEqual(keyFormats?.default, ['dot', 'snake']);
+  assert.deepEqual(keyFormats?.items?.enum, ['dot', 'snake']);
 });
 
 test('package scripts include compile, unit test, aggregate test, and package commands', () => {

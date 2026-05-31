@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import fs from 'node:fs';
 import path from 'node:path';
-import { findTranslationKeyAt, findTranslationKeys, LensConfig, LensScanResult, scanWorkspace } from './scanner';
+import { findTranslationKeyAt, findTranslationKeys, KeyFormat, LensConfig, LensScanResult, scanWorkspace } from './scanner';
 import { LensSettingsPanel } from './webview/settingsWebview';
 
 const SELECTORS: vscode.DocumentSelector = [
@@ -35,7 +35,7 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         currentConfig = await resolveConfig(root);
-        current = await scanWorkspace(currentConfig, (vscode.workspace.getConfiguration('i18ntkLens').get('customWrappers') ?? []) as string[]);
+        current = await scanWorkspace(currentConfig, getCustomWrappers());
         updateDiagnostics(diagnostics, current);
         codeLensProvider.refresh();
         vscode.window.showInformationMessage(`i18ntk Lens scan complete: ${current.locales.length} locales, ${current.missing.length} missing key usages, ${current.unused.length} unused keys.`);
@@ -58,7 +58,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.workspace.onDidSaveTextDocument(async () => {
       if (currentConfig) {
-        current = await scanWorkspace(currentConfig, (vscode.workspace.getConfiguration('i18ntkLens').get('customWrappers') ?? []) as string[]);
+        current = await scanWorkspace(currentConfig, getCustomWrappers());
         updateDiagnostics(diagnostics, current);
         codeLensProvider.refresh();
       }
@@ -75,7 +75,7 @@ export function deactivate(): void {}
 
 class LensHoverProvider implements vscode.HoverProvider {
   provideHover(document: vscode.TextDocument, position: vscode.Position): vscode.ProviderResult<vscode.Hover> {
-    const match = findTranslationKeyAt(document.getText(), document.offsetAt(position), (vscode.workspace.getConfiguration('i18ntkLens').get('customWrappers') ?? []) as string[]);
+    const match = findTranslationKeyAt(document.getText(), document.offsetAt(position), getCustomWrappers(), getKeyFormats());
     if (!match || !current) return undefined;
     const markdown = new vscode.MarkdownString(undefined, true);
     markdown.appendMarkdown(`**i18ntk Lens: ${escapeMarkdown(match.key)}**\n\n`);
@@ -99,7 +99,7 @@ class LensCodeLensProvider implements vscode.CodeLensProvider {
 
   provideCodeLenses(document: vscode.TextDocument): vscode.ProviderResult<vscode.CodeLens[]> {
     if (!current) return [];
-    return findTranslationKeys(document.getText(), (vscode.workspace.getConfiguration('i18ntkLens').get('customWrappers') ?? []) as string[]).map((match) => {
+    return findTranslationKeys(document.getText(), getCustomWrappers(), getKeyFormats()).map((match) => {
       const missing = current?.locales.filter((locale) => current?.keyValues[locale]?.[match.key] === undefined) ?? [];
       const title = missing.length ? `i18ntk: missing ${missing.join(', ')}` : 'i18ntk: open key';
       return new vscode.CodeLens(
@@ -118,8 +118,19 @@ async function resolveConfig(rootPath: string): Promise<LensConfig> {
     localeDirectory: configuredLocaleDir ? path.resolve(rootPath, configuredLocaleDir) : await detectLocaleDirectory(rootPath),
     sourceLocale: cfg.get('sourceLocale', 'en'),
     maxScanFiles: cfg.get('maxScanFiles', 3000),
-    exclude: cfg.get('exclude', ['node_modules', '.git', '.next', 'dist', 'build', 'coverage'])
+    exclude: cfg.get('exclude', ['node_modules', '.git', '.next', 'dist', 'build', 'coverage']),
+    keyFormats: getKeyFormats()
   };
+}
+
+function getCustomWrappers(): string[] {
+  return (vscode.workspace.getConfiguration('i18ntkLens').get('customWrappers') ?? []) as string[];
+}
+
+function getKeyFormats(): KeyFormat[] {
+  const configured = (vscode.workspace.getConfiguration('i18ntkLens').get('keyFormats') ?? ['dot', 'snake']) as string[];
+  const formats = configured.filter((item): item is KeyFormat => item === 'dot' || item === 'snake');
+  return formats.length ? formats : ['dot', 'snake'];
 }
 
 async function detectLocaleDirectory(rootPath: string): Promise<string> {

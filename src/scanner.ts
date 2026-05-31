@@ -10,10 +10,14 @@ export interface TextRange {
 
 export interface KeyMatch {
   key: string;
+  dynamic: boolean;
+  resolvedKeys?: string[];
   start: number;
   end: number;
   range: TextRange;
 }
+
+export type KeyFormat = 'dot' | 'snake';
 
 export interface LensConfig {
   rootPath: string;
@@ -21,6 +25,7 @@ export interface LensConfig {
   sourceLocale: string;
   maxScanFiles: number;
   exclude: string[];
+  keyFormats: KeyFormat[];
 }
 
 export interface LensScanResult {
@@ -33,81 +38,85 @@ export interface LensScanResult {
 }
 
 const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx', '.vue', '.svelte', '.html']);
-const KNOWN_WRAPPERS = [
-  /\b(?<![\w.])t\s*\(\s*(['"`])([^'"`]+)\1/g,
-  /\bi18n\.t\s*\(\s*(['"`])([^'"`]+)\1/g,
-  /\btranslate\s*\(\s*(['"`])([^'"`]+)\1/g,
-  /\$t\s*\(\s*(['"`])([^'"`]+)\1/g,
-  /\btx\s*\(\s*(['"`])([^'"`]+)\1/g,
-  /\b__\s*\(\s*(['"`])([^'"`]+)\1/g,
-  /\b_t\s*\(\s*(['"`])([^'"`]+)\1/g,
-  /\b__t\s*\(\s*(['"`])([^'"`]+)\1/g,
-  /\bi18n\s*\(\s*(['"`])([^'"`]+)\1/g,
+const KNOWN_WRAPPERS = ['t', 'i18n.t', 'translate', '$t', 'tx', '__', '_t', '__t', 'i18n'];
+const NAMESPACE_HELPERS = [
+  'useTranslations',
+  'getTranslations',
+  'useTranslation',
+  'useScopedI18n',
+  'useI18n',
+  'createTranslator',
+  'createI18n'
 ];
-
-const GENERIC_KEY_PATTERN = /\b[a-zA-Z_$][\w$]*\s*\(\s*(['"`])([a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)+)\1/g;
+const RESERVED_WORDS = new Set(['if', 'for', 'while', 'return', 'function', 'class', 'const', 'let', 'var', 'import', 'export', 'new', 'typeof', 'instanceof', 'delete', 'void']);
 
 export async function scanWorkspace(config: LensConfig, customWrappers: string[] = []): Promise<LensScanResult> {
+  const keyFormats = normalizeKeyFormats(config.keyFormats);
   const localeFiles = await discoverLocaleFiles(config.localeDirectory);
   const locales = [...new Set(localeFiles.map((file) => file.locale))].sort();
   const keyValues: Record<string, Record<string, string>> = {};
   const keyFiles: Record<string, string[]> = {};
+  const canonicalKeysByLocale: Record<string, Set<string>> = {};
   for (const file of localeFiles) {
-    keyValues[file.locale] = { ...(keyValues[file.locale] ?? {}), ...file.values };
-    for (const key of Object.keys(file.values)) {
-      keyFiles[key] = [...(keyFiles[key] ?? []), file.filePath];
+    keyValues[file.locale] = { ...(keyValues[file.locale] ?? {}) };
+    canonicalKeysByLocale[file.locale] = canonicalKeysByLocale[file.locale] ?? new Set<string>();
+    for (const [key, value] of Object.entries(file.values)) {
+      canonicalKeysByLocale[file.locale].add(key);
+      for (const alias of aliasesForKey(key, keyFormats)) {
+        keyValues[file.locale][alias] = keyValues[file.locale][alias] ?? value;
+        keyFiles[alias] = [...(keyFiles[alias] ?? []), file.filePath];
+      }
     }
   }
 
   const sourceFiles = await findFiles(config.rootPath, config.exclude, config.maxScanFiles);
-  const usages = [];
+  const usages: Array<{ key: string; dynamic: boolean; filePath: string; range: TextRange }> = [];
   for (const filePath of sourceFiles) {
     const text = await fs.promises.readFile(filePath, 'utf8').catch(() => '');
-    for (const match of findTranslationKeys(text, customWrappers)) {
-      usages.push({ key: match.key, filePath, range: match.range });
+    for (const match of findTranslationKeys(text, customWrappers, keyFormats)) {
+      const usageKeys = selectUsageKeys(match, locales, keyValues, keyFormats);
+      if (usageKeys.length) {
+        for (const key of usageKeys) {
+          usages.push({ key, dynamic: false, filePath, range: match.range });
+        }
+        continue;
+      }
+      usages.push({ key: match.key, dynamic: match.dynamic, filePath, range: match.range });
     }
   }
 
   const missing = usages
     .map((usage) => ({
-      ...usage,
-      locales: locales.filter((locale) => keyValues[locale]?.[usage.key] === undefined)
+      key: usage.key,
+      filePath: usage.filePath,
+      range: usage.range,
+      locales: locales.filter((locale) => !usageExistsInLocale(usage, keyValues[locale] ?? {}, keyFormats))
     }))
     .filter((item) => item.locales.length > 0);
-  const used = new Set(usages.map((usage) => usage.key));
-  const unused = Object.keys(keyValues[config.sourceLocale] ?? {})
-    .filter((key) => !used.has(key))
+  const unused = [...(canonicalKeysByLocale[config.sourceLocale] ?? new Set<string>())]
+    .filter((key) => !usages.some((usage) => usageMatchesKey(usage, key, keyFormats)))
     .map((key) => ({ key, filePath: keyFiles[key]?.[0] ?? config.localeDirectory }));
 
   return { locales, keyValues, keyFiles, usages, missing, unused };
 }
 
-export function findTranslationKeys(text: string, customWrappers: string[] = []): KeyMatch[] {
-  const allPatterns = [...KNOWN_WRAPPERS];
-  for (const name of customWrappers) {
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    allPatterns.push(new RegExp(`\\b${escaped}\\s*\\(\\s*(['\x60"])([^'"\x60]+)\\1`, 'g'));
-  }
+export function findTranslationKeys(text: string, customWrappers: string[] = [], keyFormats: KeyFormat[] = ['dot', 'snake']): KeyMatch[] {
+  const formats = normalizeKeyFormats(keyFormats);
+  const namespaces = findNamespaceBindings(text);
+  const staticValues = findStaticRuntimeValues(text);
+  const importedObjects = findImportedLocaleObjects(text);
+  const wrapperNames = [...new Set([...KNOWN_WRAPPERS, ...customWrappers, ...namespaces.keys()].filter(Boolean))];
   const matches: KeyMatch[] = [];
-  for (const pattern of allPatterns) {
-    pattern.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = pattern.exec(text)) !== null) {
-      const key = match[2];
-      const start = match.index + match[0].indexOf(key);
-      const end = start + key.length;
-      matches.push({ key, start, end, range: rangeFromOffsets(text, start, end) });
-    }
+  for (const name of wrapperNames) {
+    matches.push(...findCallsForName(text, name, namespaces.get(name), formats, staticValues, true));
   }
-  GENERIC_KEY_PATTERN.lastIndex = 0;
-  let gMatch: RegExpExecArray | null;
-  while ((gMatch = GENERIC_KEY_PATTERN.exec(text)) !== null) {
-    const key = gMatch[2];
-    if (/^(if|for|while|return|function|class|const|let|var|import|export|new|typeof|instanceof|delete|void)$/.test(key)) continue;
-    const start = gMatch.index + gMatch[0].indexOf(key);
-    const end = start + key.length;
-    matches.push({ key, start, end, range: rangeFromOffsets(text, start, end) });
+  for (const [name, namespace] of namespaces) {
+    matches.push(...findRuntimeNamespaceCalls(text, name, namespace, staticValues));
   }
+  for (const [name, namespace] of importedObjects) {
+    matches.push(...findImportedLocaleObjectReads(text, name, namespace));
+  }
+  matches.push(...findGenericCalls(text, formats, staticValues));
   return dedupe(matches).sort((a, b) => a.start - b.start);
 }
 
@@ -121,8 +130,329 @@ function dedupe(matches: KeyMatch[]): KeyMatch[] {
   });
 }
 
-export function findTranslationKeyAt(text: string, offset: number, customWrappers: string[] = []): KeyMatch | undefined {
-  return findTranslationKeys(text, customWrappers).find((match) => offset >= match.start && offset <= match.end);
+export function findTranslationKeyAt(text: string, offset: number, customWrappers: string[] = [], keyFormats: KeyFormat[] = ['dot', 'snake']): KeyMatch | undefined {
+  return findTranslationKeys(text, customWrappers, keyFormats).find((match) => offset >= match.start && offset <= match.end);
+}
+
+function findCallsForName(
+  text: string,
+  name: string,
+  namespace: string | undefined,
+  keyFormats: KeyFormat[],
+  staticValues: Map<string, string[]>,
+  allowSingleSegment: boolean
+): KeyMatch[] {
+  const matches: KeyMatch[] = [];
+  const pattern = new RegExp(`${callBoundaryForName(name)}${escapeRegExp(name)}\\s*\\(\\s*(['"\`])`, 'g');
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text)) !== null) {
+    const quote = match[1];
+    const contentStart = pattern.lastIndex;
+    const contentEnd = findQuotedContentEnd(text, contentStart, quote);
+    if (contentEnd === -1) break;
+    const content = text.slice(contentStart, contentEnd);
+    const key = parseKeyContent(content, quote, namespace, keyFormats, staticValues, allowSingleSegment);
+    if (key) {
+      const start = contentStart;
+      const end = key.dynamic ? contentStart + content.indexOf('${') : contentEnd;
+      matches.push({ ...key, start, end, range: rangeFromOffsets(text, start, end) });
+    }
+    pattern.lastIndex = contentEnd + 1;
+  }
+  return matches;
+}
+
+function findGenericCalls(text: string, keyFormats: KeyFormat[], staticValues: Map<string, string[]>): KeyMatch[] {
+  const matches: KeyMatch[] = [];
+  const pattern = /(?<![\w$.])([A-Za-z_$][\w$]*)\s*\(\s*(['"`])/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text)) !== null) {
+    const name = match[1];
+    if (RESERVED_WORDS.has(name) || NAMESPACE_HELPERS.includes(name)) continue;
+    const quote = match[2];
+    const contentStart = pattern.lastIndex;
+    const contentEnd = findQuotedContentEnd(text, contentStart, quote);
+    if (contentEnd === -1) break;
+    const content = text.slice(contentStart, contentEnd);
+    const key = parseKeyContent(content, quote, undefined, keyFormats, staticValues, false);
+    if (key) {
+      const start = contentStart;
+      const end = key.dynamic ? contentStart + content.indexOf('${') : contentEnd;
+      matches.push({ ...key, start, end, range: rangeFromOffsets(text, start, end) });
+    }
+    pattern.lastIndex = contentEnd + 1;
+  }
+  return matches;
+}
+
+function findRuntimeNamespaceCalls(text: string, name: string, namespace: string, staticValues: Map<string, string[]>): KeyMatch[] {
+  const matches: KeyMatch[] = [];
+  const patternSource = callBoundaryForName(name) + escapeRegExp(name) + "\\s*\\(\\s*([^\\s'\"`][^,)]*)";
+  const pattern = new RegExp(patternSource, 'g');
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text)) !== null) {
+    const expression = match[1].trim();
+    if (!expression || expression.startsWith('{') || expression.startsWith('[')) continue;
+    const start = match.index + match[0].indexOf(expression);
+    const end = start + expression.length;
+    const resolvedKeys = resolveExpressionValues(expression, staticValues).map((value) => joinNamespace(namespace, value));
+    const key = namespace.endsWith('.') || namespace.endsWith('_') ? namespace : `${namespace}.`;
+    matches.push({
+      key,
+      dynamic: true,
+      resolvedKeys: resolvedKeys.length ? resolvedKeys : undefined,
+      start,
+      end,
+      range: rangeFromOffsets(text, start, end)
+    });
+  }
+  return matches;
+}
+
+function parseKeyContent(
+  content: string,
+  quote: string,
+  namespace: string | undefined,
+  keyFormats: KeyFormat[],
+  staticValues: Map<string, string[]>,
+  allowSingleSegment: boolean
+): Pick<KeyMatch, 'key' | 'dynamic' | 'resolvedKeys'> | undefined {
+  const interpolationIndex = quote === '`' ? content.indexOf('${') : -1;
+  if (interpolationIndex >= 0) {
+    const prefix = content.slice(0, interpolationIndex);
+    if (!prefix || !isLikelyKeyPrefix(prefix, keyFormats, allowSingleSegment)) return undefined;
+    const resolvedKeys = resolveTemplateKeys(content, namespace, staticValues, keyFormats, allowSingleSegment);
+    return {
+      key: joinNamespace(namespace, prefix),
+      dynamic: true,
+      resolvedKeys: resolvedKeys.length ? resolvedKeys : undefined
+    };
+  }
+  if (!isLikelyKey(content, keyFormats, allowSingleSegment || Boolean(namespace))) return undefined;
+  return { key: joinNamespace(namespace, content), dynamic: false };
+}
+
+function findStaticRuntimeValues(text: string): Map<string, string[]> {
+  const values = new Map<string, string[]>();
+  const stringDeclaration = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(['"`])([^'"`${}\\]*(?:\\.[^'"`${}\\]*)*)\2/g;
+  let match: RegExpExecArray | null;
+  while ((match = stringDeclaration.exec(text)) !== null) {
+    values.set(match[1], [unescapeStringLiteral(match[3])]);
+  }
+
+  const arrayDeclaration = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\[([\s\S]*?)\]/g;
+  while ((match = arrayDeclaration.exec(text)) !== null) {
+    const entries = extractStringLiterals(match[2]);
+    if (entries.length) values.set(match[1], entries);
+  }
+
+  const arrayIterator = /\b([A-Za-z_$][\w$]*)\s*\.\s*(?:map|forEach|filter|some|every)\s*\(\s*(?:async\s*)?\(?\s*([A-Za-z_$][\w$]*)/g;
+  while ((match = arrayIterator.exec(text)) !== null) {
+    const sourceValues = values.get(match[1]);
+    if (sourceValues?.length) values.set(match[2], sourceValues);
+  }
+  return values;
+}
+
+function resolveTemplateKeys(
+  content: string,
+  namespace: string | undefined,
+  staticValues: Map<string, string[]>,
+  keyFormats: KeyFormat[],
+  allowSingleSegment: boolean
+): string[] {
+  const parts: Array<string | string[]> = [];
+  let cursor = 0;
+  const interpolation = /\$\{([^}]+)\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = interpolation.exec(content)) !== null) {
+    parts.push(content.slice(cursor, match.index));
+    const values = resolveExpressionValues(match[1], staticValues);
+    if (!values.length) return [];
+    parts.push(values);
+    cursor = match.index + match[0].length;
+  }
+  parts.push(content.slice(cursor));
+
+  const keys = expandTemplateParts(parts)
+    .map((key) => joinNamespace(namespace, key))
+    .filter((key) => isLikelyKey(key, keyFormats, allowSingleSegment || Boolean(namespace)));
+  return [...new Set(keys)];
+}
+
+function resolveExpressionValues(expression: string, staticValues: Map<string, string[]>): string[] {
+  const trimmed = expression.trim();
+  const literal = /^(['"`])([^'"`${}\\]*(?:\\.[^'"`${}\\]*)*)\1$/.exec(trimmed);
+  if (literal) return [unescapeStringLiteral(literal[2])];
+  const identifier = /^[A-Za-z_$][\w$]*$/.exec(trimmed);
+  if (identifier) return staticValues.get(trimmed) ?? [];
+  return [];
+}
+
+function expandTemplateParts(parts: Array<string | string[]>): string[] {
+  let results = [''];
+  for (const part of parts) {
+    const values = Array.isArray(part) ? part : [part];
+    results = results.flatMap((prefix) => values.map((value) => `${prefix}${value}`));
+  }
+  return results;
+}
+
+function extractStringLiterals(value: string): string[] {
+  const literals: string[] = [];
+  const pattern = /(['"`])([^'"`${}\\]*(?:\\.[^'"`${}\\]*)*)\1/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(value)) !== null) {
+    literals.push(unescapeStringLiteral(match[2]));
+  }
+  return literals;
+}
+
+function unescapeStringLiteral(value: string): string {
+  return value.replace(/\\(['"`\\])/g, '$1');
+}
+
+function findImportedLocaleObjects(text: string): Map<string, string> {
+  const imports = new Map<string, string>();
+  const importPattern = /\bimport\s+(?:\*\s+as\s+)?([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+)['"]/g;
+  let match: RegExpExecArray | null;
+  while ((match = importPattern.exec(text)) !== null) {
+    const namespace = namespaceFromImport(match[1], match[2]);
+    if (namespace) imports.set(match[1], namespace);
+  }
+
+  const requirePattern = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+  while ((match = requirePattern.exec(text)) !== null) {
+    const namespace = namespaceFromImport(match[1], match[2]);
+    if (namespace) imports.set(match[1], namespace);
+  }
+  return imports;
+}
+
+function namespaceFromImport(localName: string, specifier: string): string | undefined {
+  const normalized = specifier.replace(/\\/g, '/');
+  if (!/\.json($|\?)/.test(normalized) && !/(^|\/)(locales|locale|i18n|translations)(\/|$)/i.test(normalized)) return undefined;
+  return normalized.split('/').pop()?.replace(/\.json(?:\?.*)?$/, '') || localName;
+}
+
+function findImportedLocaleObjectReads(text: string, name: string, namespace: string): KeyMatch[] {
+  const matches: KeyMatch[] = [];
+  const pattern = new RegExp(`(?<![\\w$'"./-])${escapeRegExp(name)}\\.([A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)*)`, 'g');
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text)) !== null) {
+    const propertyPath = match[1];
+    const start = match.index;
+    const end = start + match[0].length;
+    matches.push({
+      key: `${namespace}.${propertyPath}`,
+      dynamic: false,
+      resolvedKeys: [propertyPath],
+      start,
+      end,
+      range: rangeFromOffsets(text, start, end)
+    });
+  }
+  return matches;
+}
+
+function findNamespaceBindings(text: string): Map<string, string> {
+  const bindings = new Map<string, string>();
+  const helpers = NAMESPACE_HELPERS.map(escapeRegExp).join('|');
+  const assignedHelper = new RegExp(`\\b(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*(?:await\\s+)?(?:${helpers})\\s*\\(([^)]*)\\)`, 'g');
+  let match: RegExpExecArray | null;
+  while ((match = assignedHelper.exec(text)) !== null) {
+    const namespace = extractNamespaceArgument(match[2]);
+    if (namespace) bindings.set(match[1], namespace);
+  }
+
+  const destructuredHelper = new RegExp(`\\b(?:const|let|var)\\s*\\{\\s*(?:t\\s*:\\s*)?([A-Za-z_$][\\w$]*)\\s*\\}\\s*=\\s*(?:await\\s+)?(?:${helpers})\\s*\\(([^)]*)\\)`, 'g');
+  while ((match = destructuredHelper.exec(text)) !== null) {
+    const namespace = extractNamespaceArgument(match[2]);
+    if (namespace) bindings.set(match[1], namespace);
+  }
+  return bindings;
+}
+
+function extractNamespaceArgument(args: string): string | undefined {
+  const keyPrefix = /\bkeyPrefix\s*:\s*(['"`])([^'"`${}]+)\1/.exec(args);
+  if (keyPrefix) return keyPrefix[2];
+  const literal = /(['"`])([^'"`${}]+)\1/.exec(args);
+  return literal?.[2];
+}
+
+function findQuotedContentEnd(text: string, start: number, quote: string): number {
+  for (let index = start; index < text.length; index += 1) {
+    if (text[index] === '\\') {
+      index += 1;
+      continue;
+    }
+    if (text[index] === quote) return index;
+  }
+  return -1;
+}
+
+function callBoundaryForName(name: string): string {
+  return /^[A-Za-z_$][\w$]*$/.test(name) ? '(?<![\\w$.])' : '(?<![\\w$])';
+}
+
+function joinNamespace(namespace: string | undefined, key: string): string {
+  if (!namespace) return key;
+  if (!key) return namespace;
+  if (namespace.endsWith('.') || namespace.endsWith('_')) return `${namespace}${key}`;
+  if (namespace.includes('_') && !namespace.includes('.')) return `${namespace}_${key}`;
+  return `${namespace}.${key}`;
+}
+
+function isLikelyKey(key: string, keyFormats: KeyFormat[], allowSingleSegment: boolean): boolean {
+  if (!key || /\s/.test(key)) return false;
+  if (allowSingleSegment && /^[A-Za-z][A-Za-z0-9-]*$/.test(key)) return true;
+  if (keyFormats.includes('dot') && /^[A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z][A-Za-z0-9_-]*)+$/.test(key)) return true;
+  if (keyFormats.includes('snake') && /^[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z][A-Za-z0-9]*)+$/.test(key)) return true;
+  return false;
+}
+
+function isLikelyKeyPrefix(prefix: string, keyFormats: KeyFormat[], allowSingleSegment: boolean): boolean {
+  if (!prefix || /\s/.test(prefix)) return false;
+  const trimmed = prefix.replace(/[._-]$/, '');
+  return isLikelyKey(trimmed, keyFormats, allowSingleSegment);
+}
+
+function aliasesForKey(key: string, keyFormats: KeyFormat[]): Set<string> {
+  const aliases = new Set([key]);
+  if (keyFormats.includes('dot') && key.includes('_')) aliases.add(key.replace(/_/g, '.'));
+  if (keyFormats.includes('snake') && key.includes('.')) aliases.add(key.replace(/\./g, '_'));
+  return aliases;
+}
+
+function usageExistsInLocale(usage: { key: string; dynamic: boolean }, localeValues: Record<string, string>, keyFormats: KeyFormat[]): boolean {
+  if (usage.dynamic) {
+    return [...aliasesForKey(usage.key, keyFormats)].some((prefix) => Object.keys(localeValues).some((key) => key.startsWith(prefix)));
+  }
+  return [...aliasesForKey(usage.key, keyFormats)].some((key) => localeValues[key] !== undefined);
+}
+
+function usageMatchesKey(usage: { key: string; dynamic: boolean }, key: string, keyFormats: KeyFormat[]): boolean {
+  const keyAliases = aliasesForKey(key, keyFormats);
+  const usageAliases = aliasesForKey(usage.key, keyFormats);
+  if (usage.dynamic) {
+    return [...usageAliases].some((prefix) => [...keyAliases].some((keyAlias) => keyAlias.startsWith(prefix)));
+  }
+  return [...usageAliases].some((usageAlias) => keyAliases.has(usageAlias));
+}
+
+function selectUsageKeys(match: KeyMatch, locales: string[], keyValues: Record<string, Record<string, string>>, keyFormats: KeyFormat[]): string[] {
+  const candidates = [match.key, ...(match.resolvedKeys ?? [])];
+  const known = candidates.filter((key) => locales.some((locale) => usageExistsInLocale({ key, dynamic: false }, keyValues[locale] ?? {}, keyFormats)));
+  return [...new Set(known.length ? known : match.resolvedKeys ?? [])];
+}
+
+function normalizeKeyFormats(keyFormats: KeyFormat[] | undefined): KeyFormat[] {
+  const normalized = [...new Set((keyFormats ?? ['dot', 'snake']).filter((item): item is KeyFormat => item === 'dot' || item === 'snake'))];
+  return normalized.length ? normalized : ['dot', 'snake'];
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 async function discoverLocaleFiles(localeDirectory: string): Promise<Array<{ locale: string; filePath: string; values: Record<string, string> }>> {

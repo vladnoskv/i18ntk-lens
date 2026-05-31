@@ -9,6 +9,7 @@ test('renderSettingsHtml escapes settings values and includes CSP nonce', () => 
     maxScanFiles: 3000,
     exclude: ['node_modules', '<script>'],
     customWrappers: ['tx', '" onclick="alert(1)'],
+    keyFormats: ['dot', 'snake'],
     nonce: 'abc123'
   });
 
@@ -16,5 +17,7 @@ test('renderSettingsHtml escapes settings values and includes CSP nonce', () => 
   assert.match(html, /locales\/&quot;bad&quot;/);
   assert.match(html, /&lt;script&gt;/);
   assert.match(html, /&quot; onclick=&quot;alert\(1\)/);
+  assert.match(html, /id="keyFormatDot"[^>]*checked/);
+  assert.match(html, /id="keyFormatSnake"[^>]*checked/);
   assert.doesNotMatch(html, /value="locales\/"bad""/);
 });

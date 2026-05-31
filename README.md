@@ -12,6 +12,12 @@ i18ntk Lens adds fast inline translation visibility to VS Code: hover values, Co
 
 It is a lightweight companion to the zero-dependency `i18ntk` npm package. Lens is standalone and does not add an Activity Bar container, so if i18ntk Workbench is installed too, Workbench remains the single i18ntk sidebar while Lens keeps the editor feedback close to your code.
 
+## Latest in 1.0.2
+
+- Dynamic template keys can now resolve exact static runtime candidates from string constants, string arrays, and iterator callbacks.
+- Scoped runtime helpers such as `useTranslations("news.page")` and imported locale JSON objects such as `common.save` reduce missing/unused false positives.
+- Dot and snake key formats can be enabled together in settings.
+
 ## i18ntk CLI Companion
 
 The main `i18ntk` npm package powers the broader workflow:
@@ -48,7 +54,7 @@ Requirements:
 
 ## What You Get
 
-- **Hover translations**: shows values for `t("key")`, `i18n.t("key")`, `translate("key")`, `$t("key")`, and configured custom wrappers.
+- **Hover translations**: shows values for `t("key")`, `i18n.t("key")`, `translate("key")`, `$t("key")`, configured custom wrappers, scoped runtime helpers, and imported locale JSON objects.
 - **CodeLens indicators**: shows whether target locales are missing for each detected key.
 - **Missing key diagnostics**: warns in source files when a used key has no value in one or more locales.
 - **Unused key diagnostics**: marks source-locale keys that appear unused.
@@ -74,6 +80,7 @@ Requirements:
 | `i18ntkLens.maxScanFiles` | number | `3000` | Maximum source files to scan. |
 | `i18ntkLens.exclude` | array | `["node_modules", ".git", ".next", "dist", "build", "coverage"]` | Folders excluded from scans. |
 | `i18ntkLens.customWrappers` | array | `[]` | Additional translation wrapper names, such as `tx`, `__`, or `_t`. |
+| `i18ntkLens.keyFormats` | array | `["dot", "snake"]` | Key formats to detect and match. Enable dot, snake, or both. |
 
 ## Supported Layouts
 

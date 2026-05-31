@@ -4,6 +4,7 @@ export interface LensSettingsViewModel {
   maxScanFiles: number;
   exclude: string[];
   customWrappers: string[];
+  keyFormats: string[];
   nonce: string;
 }
 
@@ -26,10 +27,13 @@ export function renderSettingsHtml(model: LensSettingsViewModel): string {
     .field { margin-bottom: 14px; }
     label { display: block; font-weight: 600; margin-bottom: 5px; }
     input { width: 100%; padding: 7px 8px; border: 1px solid var(--vscode-input-border); background: var(--vscode-input-background); color: var(--vscode-input-foreground); border-radius: 3px; }
+    input[type="checkbox"] { width: auto; margin: 0; }
     input:focus { outline: 1px solid var(--vscode-focusBorder); }
     .hint { font-size: 12px; color: var(--vscode-descriptionForeground); margin-top: 4px; line-height: 1.45; }
     .list-editor { display: grid; gap: 6px; max-width: 560px; }
     .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+    .checks { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; }
+    .check { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; }
     button { color: var(--vscode-button-foreground); background: var(--vscode-button-background); border: 0; padding: 7px 11px; border-radius: 3px; cursor: pointer; }
     button:hover { background: var(--vscode-button-hoverBackground); }
     button.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
@@ -69,8 +73,15 @@ export function renderSettingsHtml(model: LensSettingsViewModel): string {
 
   <h2>Custom Wrapper Functions</h2>
   <div class="list-editor" id="wrapperList">${model.customWrappers.map((v) => row(v)).join('')}</div>
-  <div class="hint">Add wrapper names such as tx, __, or _t when your app uses custom translation functions.</div>
+  <div class="hint">Add wrapper names such as tx, __, or _t. Lens also detects common namespace helpers such as useTranslations("news.page").</div>
   <div class="actions"><button id="addWrapper" class="secondary">Add Wrapper</button></div>
+
+  <h2>Key Formats</h2>
+  <div class="checks">
+    <label class="check" for="keyFormatDot"><input type="checkbox" id="keyFormatDot" value="dot"${checked(model.keyFormats, 'dot')}> Dot keys</label>
+    <label class="check" for="keyFormatSnake"><input type="checkbox" id="keyFormatSnake" value="snake"${checked(model.keyFormats, 'snake')}> Snake keys</label>
+  </div>
+  <div class="hint">Dot matches keys like news.page.title. Snake matches keys like news_page_title. Enable both when locale files and source code mix styles.</div>
 
   <div class="actions">
     <button id="save">Save Settings</button>
@@ -103,6 +114,7 @@ export function renderSettingsHtml(model: LensSettingsViewModel): string {
         maxScanFiles: parseInt(document.getElementById('maxScanFiles').value, 10) || 3000,
         exclude: [...document.getElementById('excludeList').querySelectorAll('input')].map(e => e.value.trim()).filter(Boolean),
         customWrappers: [...document.getElementById('wrapperList').querySelectorAll('input')].map(e => e.value.trim()).filter(Boolean),
+        keyFormats: [...document.querySelectorAll('input[id^="keyFormat"]:checked')].map(e => e.value),
       };
     }
     document.getElementById('addExclude').addEventListener('click', () => addRow('excludeList'));
@@ -128,6 +140,10 @@ export function renderSettingsHtml(model: LensSettingsViewModel): string {
 
 function row(value: string): string {
   return `<div class="row"><input type="text" value="${escapeAttr(value)}"><button type="button" class="secondary" data-remove-row="true">Remove</button></div>`;
+}
+
+function checked(values: string[], value: string): string {
+  return values.includes(value) ? ' checked' : '';
 }
 
 function escapeAttr(value: string): string {

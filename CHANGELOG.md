@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.2 - 2026-05-31
+
+- Added dynamic key resolution for static runtime candidates from string constants, string arrays, and iterator callbacks.
+- Added namespace-scoped runtime detection for helpers such as `useTranslations("news.page")`.
+- Added imported locale JSON object detection for reads such as `common.save`.
+- Added configurable dot/snake key format detection and matching.
+- Bumped package metadata for the 1.0.2 VSIX update.
+
 ## 1.0.0 - 2026-05-31
 
 - First Marketplace-ready release.

@@ -2,7 +2,7 @@
   "name": "i18ntk-lens",
   "displayName": "i18ntk Lens",
   "description": "Inline i18ntk translation visibility for VS Code: hovers, CodeLens, missing-key warnings, unused-key diagnostics, and key navigation.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "VladNoskov",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -74,7 +74,22 @@
           "items": {
             "type": "string"
           },
-          "description": "Custom translation wrapper function names (e.g. tx, __, _t). Auto-detects dot-separated keys in any function call."
+          "description": "Custom translation wrapper function names (e.g. tx, __, _t)."
+        },
+        "i18ntkLens.keyFormats": {
+          "type": "array",
+          "default": [
+            "dot",
+            "snake"
+          ],
+          "items": {
+            "type": "string",
+            "enum": [
+              "dot",
+              "snake"
+            ]
+          },
+          "description": "Translation key formats to detect and match. Enable dot for keys like news.page.title and snake for keys like news_page_title."
         }
       }
     },
@@ -100,7 +115,7 @@
     "compile": "tsc -p .",
     "test:unit": "node --test out/test/unit/*.test.js",
     "test": "npm run compile && npm run test:unit",
-    "package": "vsce package --out ../i18ntk-lens-1.0.1.vsix"
+    "package": "vsce package --out ../i18ntk-lens-1.0.2.vsix"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

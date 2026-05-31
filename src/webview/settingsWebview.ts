@@ -29,18 +29,20 @@ export class LensSettingsPanel {
     const maxScanFiles = config.get('maxScanFiles', 3000);
     const exclude = config.get('exclude', []) as string[];
     const customWrappers = config.get('customWrappers', []) as string[];
-    return renderSettingsHtml({ localeDirectory: localeDir, sourceLocale, maxScanFiles, exclude, customWrappers, nonce: createNonce() });
+    const keyFormats = config.get('keyFormats', ['dot', 'snake']) as string[];
+    return renderSettingsHtml({ localeDirectory: localeDir, sourceLocale, maxScanFiles, exclude, customWrappers, keyFormats, nonce: createNonce() });
   }
 
   private static async handleMessage(message: any): Promise<void> {
     const config = vscode.workspace.getConfiguration('i18ntkLens');
-    if (message.command === 'save') {
+    if (message.command === 'save' || message.command === 'saveAndScan') {
       const d = message.data;
       await config.update('localeDirectory', d.localeDirectory, vscode.ConfigurationTarget.Workspace);
       await config.update('sourceLocale', d.sourceLocale, vscode.ConfigurationTarget.Workspace);
       await config.update('maxScanFiles', d.maxScanFiles, vscode.ConfigurationTarget.Workspace);
       await config.update('exclude', d.exclude, vscode.ConfigurationTarget.Workspace);
       await config.update('customWrappers', d.customWrappers, vscode.ConfigurationTarget.Workspace);
+      await config.update('keyFormats', d.keyFormats?.length ? d.keyFormats : ['dot', 'snake'], vscode.ConfigurationTarget.Workspace);
       this.panel?.webview.postMessage({ command: 'saved' });
       if (message.command === 'saveAndScan') {
         await vscode.commands.executeCommand('i18ntkLens.scan');
@@ -52,6 +54,7 @@ export class LensSettingsPanel {
       await config.update('maxScanFiles', undefined, vscode.ConfigurationTarget.Workspace);
       await config.update('exclude', undefined, vscode.ConfigurationTarget.Workspace);
       await config.update('customWrappers', undefined, vscode.ConfigurationTarget.Workspace);
+      await config.update('keyFormats', undefined, vscode.ConfigurationTarget.Workspace);
       if (this.panel) {
         this.panel.webview.html = this.getHtml();
       }
