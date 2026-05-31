@@ -135,6 +135,16 @@ Use i18ntk Workbench when you want the VS Code sidebar, reports, key management,
 - Install **i18ntk Workbench** when you want the sidebar, reports, key management, setup flow, and Auto Translate entry points.
 - Install both when you want the full sidebar plus inline editor feedback. Workbench owns the Activity Bar icon; Lens stays inline-only so the sidebar remains clean.
 
+## Related Tools
+
+| Tool | Purpose |
+|---|---|
+| **i18ntk** | Zero-dependency i18n toolkit for scanning, validation, translation, reports, and runtime loading. |
+| **i18ntk Workbench** | Full VS Code localization health dashboard powered by i18ntk. |
+| **i18ntk Lens** | Lightweight inline translation hovers, diagnostics, and key navigation. |
+| **PublishGuard** | Pre-publish safety scanner for npm packages and VS Code extensions. |
+| **ContextKit** | AI coding context manager for AGENTS.md, Claude, Cursor, Copilot, Roo, and Codex files. |
+
 ## Privacy
 
 i18ntk Lens reads workspace files locally. No data is sent anywhere, and no telemetry is collected.
