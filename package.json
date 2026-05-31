@@ -5,6 +5,7 @@
   "version": "0.2.0",
   "publisher": "vladnoskv",
   "license": "MIT",
+  "icon": "media/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/vladnoskv/i18ntk-lens"
@@ -16,9 +17,6 @@
   "categories": ["Other", "Linters"],
   "keywords": ["i18ntk", "i18n", "translation", "codelens", "hover"],
   "activationEvents": [
-    "onCommand:i18ntkLens.scan",
-    "onCommand:i18ntkLens.openKeyInLocaleFiles",
-    "onCommand:i18ntkLens.openSettings",
     "workspaceContains:locales",
     "workspaceContains:i18n",
     "workspaceContains:translations",

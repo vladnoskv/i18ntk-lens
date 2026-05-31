@@ -1,17 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="i18ntk Lens">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="128" y2="128">
-      <stop offset="0%" stop-color="#1F6FEB"/>
-      <stop offset="100%" stop-color="#0D419D"/>
+    <linearGradient id="bg" x1="16" y1="8" x2="112" y2="120">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#0F766E"/>
     </linearGradient>
   </defs>
-  <rect width="128" height="128" rx="22" fill="url(#bg)"/>
-  <ellipse cx="64" cy="58" rx="38" ry="36" fill="none" stroke="#fff" stroke-width="3.5" stroke-dasharray="6 3" opacity="0.5"/>
-  <ellipse cx="64" cy="58" rx="38" ry="36" fill="none" stroke="#fff" stroke-width="3" opacity="0.3"/>
-  <path d="M26 58h76" stroke="#fff" stroke-width="2.5" opacity="0.35"/>
-  <path d="M64 22v72" stroke="#fff" stroke-width="2.5" opacity="0.35"/>
-  <text x="64" y="66" text-anchor="middle" font-family="system-ui, sans-serif" font-size="22" font-weight="800" fill="#fff">i18n</text>
-  <text x="64" y="104" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#9BE9A8" letter-spacing="2">TK</text>
-  <circle cx="98" cy="36" r="12" fill="#9BE9A8"/>
-  <path d="M93 36l3 6 6-4-2 7 6 1-6 2 2 6-5-3-4 5-1-6-6-1 6-4-3-6 4 3z" fill="#1F6FEB"/>
-</svg>
+  <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#bg)"/>
+  <circle cx="58" cy="58" r="33" fill="none" stroke="#DDF4FF" stroke-width="5"/>
+  <path d="M81.5 81.5 103 103" stroke="#DDF4FF" stroke-width="11" stroke-linecap="round"/>
+  <path d="M32 58h52M58 32v52" stroke="#DDF4FF" stroke-width="3" stroke-linecap="round" opacity=".42"/>
+  <path d="M40 58c3.8-12.7 9.8-22 18-22s14.2 9.3 18 22c-3.8 12.7-9.8 22-18 22s-14.2-9.3-18-22Z" fill="none" stroke="#DDF4FF" stroke-width="3" opacity=".58"/>
+  <path d="M42 92h24c4.4 0 8 3.6 8 8v4H42V92Z" fill="#A7F3D0"/>
+  <path d="M46 98h24" stroke="#0F766E" stroke-width="4" stroke-linecap="round"/>
+  <path d="M88 29h13v-7h7v7h13v7h-11.1c-.6 3.2-1.9 6.2-3.7 8.9 3.1 2.4 6.3 4.1 9.8 5.2l-3.5 6.4c-4.1-1.4-7.7-3.5-10.8-6.2-3.1 2.8-6.8 4.9-11.2 6.4L87 51.3c3.6-1.2 6.6-2.9 9.1-5.2-1.8-2.4-3.2-5.1-4.4-8l6.2-2.2c.8 1.8 1.7 3.5 2.9 5.1 1-1.5 1.8-3.1 2.3-5H88v-7Z" fill="#A7F3D0"/>
+  </svg>

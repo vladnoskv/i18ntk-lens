@@ -1,5 +1,7 @@
 # i18ntk Lens
 
+![i18ntk Lens icon](media/icon.png)
+
 Inline translation visibility for i18ntk projects. Lens helps you see translations, missing keys, unused keys, and source usage directly in the editor.
 
 ## Features
