@@ -1,0 +1,79 @@
+{
+  "name": "i18ntk-lens",
+  "displayName": "i18ntk Lens",
+  "description": "Fast inline translation visibility for i18ntk projects: hovers, CodeLens, missing and unused key warnings.",
+  "version": "0.1.0",
+  "publisher": "vladnoskv",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vladnoskv/i18ntk"
+  },
+  "engines": {
+    "vscode": "^1.90.0",
+    "node": ">=18.0.0"
+  },
+  "categories": ["Other", "Linters"],
+  "keywords": ["i18ntk", "i18n", "translation", "codelens", "hover"],
+  "activationEvents": [
+    "onCommand:i18ntkLens.scan",
+    "onCommand:i18ntkLens.openKeyInLocaleFiles",
+    "workspaceContains:locales",
+    "workspaceContains:i18n",
+    "workspaceContains:translations",
+    "workspaceContains:public/locales",
+    "workspaceContains:src/locales"
+  ],
+  "main": "./out/src/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "i18ntk Lens",
+      "properties": {
+        "i18ntkLens.localeDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "Locale directory. Empty means auto-detect common locale folders."
+        },
+        "i18ntkLens.sourceLocale": {
+          "type": "string",
+          "default": "en",
+          "description": "Source/default locale code."
+        },
+        "i18ntkLens.maxScanFiles": {
+          "type": "number",
+          "default": 3000,
+          "minimum": 100,
+          "description": "Maximum source files to scan."
+        },
+        "i18ntkLens.exclude": {
+          "type": "array",
+          "default": ["node_modules", ".git", ".next", "dist", "build", "coverage"],
+          "items": { "type": "string" },
+          "description": "Folder or file name fragments excluded from scans."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "i18ntkLens.scan",
+        "title": "i18ntk Lens: Scan Workspace",
+        "category": "i18ntk Lens"
+      },
+      {
+        "command": "i18ntkLens.openKeyInLocaleFiles",
+        "title": "i18ntk Lens: Open Key in Locale Files",
+        "category": "i18ntk Lens"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.8.3",
+    "vsce": "^2.15.0"
+  }
+}
