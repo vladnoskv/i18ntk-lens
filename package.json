@@ -1,9 +1,9 @@
 {
   "name": "i18ntk-lens",
   "displayName": "i18ntk Lens",
-  "description": "Fast inline translation visibility for i18ntk projects: hovers, CodeLens, missing and unused key warnings.",
-  "version": "0.2.0",
-  "publisher": "vladnoskv",
+  "description": "Lightweight inline i18ntk visibility for hover translations, CodeLens, missing-key warnings, unused-key diagnostics, and key navigation.",
+  "version": "1.0.0",
+  "publisher": "VladNoskov",
   "license": "MIT",
   "icon": "media/icon.png",
   "repository": {
@@ -78,7 +78,9 @@
   },
   "scripts": {
     "compile": "tsc -p .",
-    "package": "vsce package --out ../i18ntk-lens-0.2.0.vsix"
+    "test:unit": "node --test out/test/unit/*.test.js",
+    "test": "npm run compile && npm run test:unit",
+    "package": "vsce package --out ../i18ntk-lens-1.0.0.vsix"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

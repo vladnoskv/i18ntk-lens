@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0 - 2026-05-31
+
+- First Marketplace-ready release.
+- Polished launch documentation for inline translation visibility, setup, commands, settings, supported layouts, and privacy.
+- Added a Lens test script with unit coverage for scanner behavior, settings HTML escaping, package scripts, and standalone inline-only manifest behavior.
+- Documented that Lens does not add a second i18ntk Activity Bar icon when Workbench is installed.
+- Added CLI companion guidance recommending `npm install i18ntk` for terminal workflows.
+- Packaged extension for VS Code Marketplace distribution.
+
 ## 0.2.0 - 2026-05-31
 
 - Bumped extension version to 0.2.0.
