@@ -2,7 +2,7 @@
   "name": "i18ntk-lens",
   "displayName": "i18ntk Lens",
   "description": "Fast inline translation visibility for i18ntk projects: hovers, CodeLens, missing and unused key warnings.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "vladnoskv",
   "license": "MIT",
   "repository": {
@@ -18,6 +18,7 @@
   "activationEvents": [
     "onCommand:i18ntkLens.scan",
     "onCommand:i18ntkLens.openKeyInLocaleFiles",
+    "onCommand:i18ntkLens.openSettings",
     "workspaceContains:locales",
     "workspaceContains:i18n",
     "workspaceContains:translations",

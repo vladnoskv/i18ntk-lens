@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.1.0 — 2026-05-31
+## 0.2.0 - 2026-05-31
+
+- Bumped extension version to 0.2.0.
+- Added activation for `i18ntk Lens: Open Settings`.
+- Refined the settings webview with clearer sections, responsive layout, CSP-safe controls, Save and Scan, and custom wrapper management.
+- Updated user-facing README documentation for commands, settings, layouts, and privacy.
+
+## 0.1.0 - 2026-05-31
 
 - Initial release.
 - Hover translations for `t()`, `i18n.t()`, `translate()`, `$t()` patterns.
