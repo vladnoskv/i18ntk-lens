@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import fs from 'node:fs';
 import path from 'node:path';
 import { findTranslationKeyAt, findTranslationKeys, LensConfig, LensScanResult, scanWorkspace } from './scanner';
 
@@ -121,7 +122,7 @@ async function detectLocaleDirectory(rootPath: string): Promise<string> {
   for (const candidate of ['locales', 'i18n', 'translations', 'public/locales', 'src/locales']) {
     const fullPath = path.join(rootPath, candidate);
     try {
-      const stat = await import('node:fs').then((fs) => fs.default.promises.stat(fullPath));
+      const stat = await fs.promises.stat(fullPath);
       if (stat.isDirectory()) return fullPath;
     } catch {
       // Continue.
