@@ -2,7 +2,7 @@
   "name": "i18ntk-lens",
   "displayName": "i18ntk Lens",
   "description": "Lightweight inline i18ntk visibility for hover translations, CodeLens, missing-key warnings, unused-key diagnostics, and key navigation.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "VladNoskov",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -14,8 +14,17 @@
     "vscode": "^1.90.0",
     "node": ">=18.0.0"
   },
-  "categories": ["Other", "Linters"],
-  "keywords": ["i18ntk", "i18n", "translation", "codelens", "hover"],
+  "categories": [
+    "Other",
+    "Linters"
+  ],
+  "keywords": [
+    "i18ntk",
+    "i18n",
+    "translation",
+    "codelens",
+    "hover"
+  ],
   "activationEvents": [
     "workspaceContains:locales",
     "workspaceContains:i18n",
@@ -46,14 +55,25 @@
         },
         "i18ntkLens.exclude": {
           "type": "array",
-          "default": ["node_modules", ".git", ".next", "dist", "build", "coverage"],
-          "items": { "type": "string" },
+          "default": [
+            "node_modules",
+            ".git",
+            ".next",
+            "dist",
+            "build",
+            "coverage"
+          ],
+          "items": {
+            "type": "string"
+          },
           "description": "Folder or file name fragments excluded from scans."
         },
         "i18ntkLens.customWrappers": {
           "type": "array",
           "default": [],
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Custom translation wrapper function names (e.g. tx, __, _t). Auto-detects dot-separated keys in any function call."
         }
       }
@@ -80,12 +100,12 @@
     "compile": "tsc -p .",
     "test:unit": "node --test out/test/unit/*.test.js",
     "test": "npm run compile && npm run test:unit",
-    "package": "vsce package --out ../i18ntk-lens-1.0.0.vsix"
+    "package": "vsce package --out ../i18ntk-lens-1.0.1s.vsix"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/vscode": "^1.90.0",
-    "typescript": "^5.8.3",
-    "vsce": "^2.15.0"
+    "@vscode/vsce": "^3.9.1",
+    "typescript": "^5.8.3"
   }
 }
