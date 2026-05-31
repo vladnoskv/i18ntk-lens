@@ -1,6 +1,12 @@
-src/**
+.vscode/**
+.vscode-test/**
 node_modules/**
-*.map
+src/**
+test/**
+out/test/**
+**/*.map
 tsconfig.json
 package-lock.json
 *.vsix
+.gitignore
+DEV_NOTES.md

@@ -80,7 +80,7 @@
   },
   "scripts": {
     "compile": "tsc -p .",
-    "package": "vsce package"
+    "package": "vsce package --out ../i18ntk-lens-0.2.0.vsix"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
