@@ -18,6 +18,22 @@ test('findTranslationKeys detects built-in and custom wrappers once', () => {
   assert.deepEqual(keys, ['home.title', 'home.subtitle', 'checkout.pay', 'account.name']);
 });
 
+test('findTranslationKeys ignores non-translation function and method string arguments', () => {
+  const text = [
+    'const next = searchParams.get("next");',
+    'window.localStorage.setItem("pending", "1");',
+    'settingsRes.headers.get("etag");',
+    'clearWaitlist("pending");',
+    'clearWaitlist("admin.panel");',
+    'response.headers.set("Clear-Site-Data", "\\"cache\\", \\"storage\\"");',
+    'const title = t("home.title");'
+  ].join('\n');
+
+  const keys = findTranslationKeys(text).map((match) => match.key);
+
+  assert.deepEqual(keys, ['home.title']);
+});
+
 test('findTranslationKeys detects dynamic template prefixes', () => {
   const text = [
     'const topic = tx(`news.page.topics.${item}`);',

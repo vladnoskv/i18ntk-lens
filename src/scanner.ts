@@ -48,7 +48,6 @@ const NAMESPACE_HELPERS = [
   'createTranslator',
   'createI18n'
 ];
-const RESERVED_WORDS = new Set(['if', 'for', 'while', 'return', 'function', 'class', 'const', 'let', 'var', 'import', 'export', 'new', 'typeof', 'instanceof', 'delete', 'void']);
 
 export async function scanWorkspace(config: LensConfig, customWrappers: string[] = []): Promise<LensScanResult> {
   const keyFormats = normalizeKeyFormats(config.keyFormats);
@@ -116,7 +115,6 @@ export function findTranslationKeys(text: string, customWrappers: string[] = [],
   for (const [name, namespace] of importedObjects) {
     matches.push(...findImportedLocaleObjectReads(text, name, namespace));
   }
-  matches.push(...findGenericCalls(text, formats, staticValues));
   return dedupe(matches).sort((a, b) => a.start - b.start);
 }
 
@@ -152,29 +150,6 @@ function findCallsForName(
     if (contentEnd === -1) break;
     const content = text.slice(contentStart, contentEnd);
     const key = parseKeyContent(content, quote, namespace, keyFormats, staticValues, allowSingleSegment);
-    if (key) {
-      const start = contentStart;
-      const end = key.dynamic ? contentStart + content.indexOf('${') : contentEnd;
-      matches.push({ ...key, start, end, range: rangeFromOffsets(text, start, end) });
-    }
-    pattern.lastIndex = contentEnd + 1;
-  }
-  return matches;
-}
-
-function findGenericCalls(text: string, keyFormats: KeyFormat[], staticValues: Map<string, string[]>): KeyMatch[] {
-  const matches: KeyMatch[] = [];
-  const pattern = /(?<![\w$.])([A-Za-z_$][\w$]*)\s*\(\s*(['"`])/g;
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(text)) !== null) {
-    const name = match[1];
-    if (RESERVED_WORDS.has(name) || NAMESPACE_HELPERS.includes(name)) continue;
-    const quote = match[2];
-    const contentStart = pattern.lastIndex;
-    const contentEnd = findQuotedContentEnd(text, contentStart, quote);
-    if (contentEnd === -1) break;
-    const content = text.slice(contentStart, contentEnd);
-    const key = parseKeyContent(content, quote, undefined, keyFormats, staticValues, false);
     if (key) {
       const start = contentStart;
       const end = key.dynamic ? contentStart + content.indexOf('${') : contentEnd;

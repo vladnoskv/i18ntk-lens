@@ -2,7 +2,7 @@
   "name": "i18ntk-lens",
   "displayName": "i18ntk Lens",
   "description": "Inline i18ntk translation visibility for VS Code: hovers, CodeLens, missing-key warnings, unused-key diagnostics, and key navigation.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "publisher": "VladNoskov",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -115,7 +115,7 @@
     "compile": "tsc -p .",
     "test:unit": "node --test out/test/unit/*.test.js",
     "test": "npm run compile && npm run test:unit",
-    "package": "vsce package --out ../i18ntk-lens-1.0.2.vsix"
+    "package": "vsce package --out ../i18ntk-lens-1.0.3.vsix"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
