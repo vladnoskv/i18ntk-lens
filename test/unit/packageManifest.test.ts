@@ -12,6 +12,7 @@ const manifest = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'package
     configuration?: { properties?: Record<string, { default?: unknown; items?: { enum?: string[] } }> };
   };
   scripts?: Record<string, string>;
+  dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
 };
 
@@ -31,11 +32,30 @@ test('manifest exposes configurable key formats', () => {
   assert.deepEqual(keyFormats?.items?.enum, ['dot', 'snake']);
 });
 
-test('package scripts include compile, unit test, aggregate test, and package commands', () => {
-  assert.equal(manifest.scripts?.compile, 'tsc -p .');
+test('manifest exposes extension UI language setting', () => {
+  const language = manifest.contributes?.configuration?.properties?.['i18ntkLens.extensionLanguage'] as any;
+
+  assert.equal(language?.default, 'auto');
+  assert.deepEqual(language?.enum, ['auto', 'en', 'es', 'fr', 'de']);
+});
+
+test('manifest keeps Lens automatic scans disabled by default', () => {
+  const properties = manifest.contributes?.configuration?.properties as Record<string, any>;
+
+  assert.equal(properties?.['i18ntkLens.scanOnStartup']?.default, false);
+  assert.equal(properties?.['i18ntkLens.autoScanOnSave']?.default, false);
+});
+
+test('package scripts include compile, locale asset copy, unit test, aggregate test, and package commands', () => {
+  assert.equal(manifest.scripts?.compile, 'tsc -p . && node scripts/copy-i18ntk-locales.js');
   assert.equal(manifest.scripts?.['test:unit'], 'node --test out/test/unit/*.test.js');
   assert.equal(manifest.scripts?.test, 'npm run compile && npm run test:unit');
   assert.equal(manifest.scripts?.package, `vsce package --out ../i18ntk-lens-${manifest.version}.vsix`);
+  assert.ok(manifest.dependencies?.i18ntk);
   assert.ok(manifest.devDependencies?.['@vscode/vsce']);
   assert.equal(manifest.devDependencies?.vsce, undefined);
+});
+
+test('manifest depends on the packaged i18ntk runtime', () => {
+  assert.equal(manifest.dependencies?.i18ntk, 'file:../i18ntk-4.4.2.tgz');
 });

@@ -12,6 +12,20 @@ i18ntk Lens adds fast inline translation visibility to VS Code: hover values, Co
 
 It is a lightweight companion to the zero-dependency `i18ntk` npm package. Lens is standalone and does not add an Activity Bar container, so if i18ntk Workbench is installed too, Workbench remains the single i18ntk sidebar while Lens keeps the editor feedback close to your code.
 
+## Latest in 1.1.3
+
+- Lens no longer scans automatically on activation or save unless you enable the new scan scheduling settings.
+- New `i18ntkLens.scanOnStartup` and `i18ntkLens.autoScanOnSave` settings make automatic scanning explicit.
+- Repeated Lens scan requests reuse the active scan, and default scan breadth is lower to reduce extension-host CPU and memory use.
+- Very large source files are skipped during usage scanning.
+
+## Latest in 1.1.2
+
+- Lens extension UI messages are now powered by i18ntk locale bundles in English, Spanish, French, and German.
+- New `i18ntkLens.extensionLanguage` setting lets users follow VS Code display language or explicitly choose the Lens UI language.
+- Packaged builds copy `src/i18ntk/locales` into the extension output so the localization runtime works inside VS Code.
+- Locale coverage tests verify every translated Lens UI bundle has the same keys and placeholders as English.
+
 ## Latest in 1.1.1
 
 - Source scanning no longer treats arbitrary function calls or methods like `get("next")`, `headers.get("etag")`, or `clearWaitlist("admin.panel")` as translation keys.

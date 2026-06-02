@@ -1,6 +1,9 @@
 export interface LensSettingsViewModel {
   localeDirectory: string;
   sourceLocale: string;
+  extensionLanguage: string;
+  scanOnStartup: boolean;
+  autoScanOnSave: boolean;
   maxScanFiles: number;
   exclude: string[];
   customWrappers: string[];
@@ -26,14 +29,14 @@ export function renderSettingsHtml(model: LensSettingsViewModel): string {
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
     .field { margin-bottom: 14px; }
     label { display: block; font-weight: 600; margin-bottom: 5px; }
-    input { width: 100%; padding: 7px 8px; border: 1px solid var(--vscode-input-border); background: var(--vscode-input-background); color: var(--vscode-input-foreground); border-radius: 3px; }
+    input, select { width: 100%; padding: 7px 8px; border: 1px solid var(--vscode-input-border); background: var(--vscode-input-background); color: var(--vscode-input-foreground); border-radius: 3px; }
     input[type="checkbox"] { width: auto; margin: 0; }
     input:focus { outline: 1px solid var(--vscode-focusBorder); }
     .hint { font-size: 12px; color: var(--vscode-descriptionForeground); margin-top: 4px; line-height: 1.45; }
     .list-editor { display: grid; gap: 6px; max-width: 560px; }
     .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
     .checks { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; }
-    .check { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; }
+    .check { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; margin: 4px 0; }
     button { color: var(--vscode-button-foreground); background: var(--vscode-button-background); border: 0; padding: 7px 11px; border-radius: 3px; cursor: pointer; }
     button:hover { background: var(--vscode-button-hoverBackground); }
     button.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
@@ -61,11 +64,21 @@ export function renderSettingsHtml(model: LensSettingsViewModel): string {
       <div class="hint">The locale treated as the source language.</div>
     </div>
     <div class="field">
+      <label for="extensionLanguage">Extension UI Language</label>
+      <select id="extensionLanguage">${languageOptions(model.extensionLanguage)}</select>
+      <div class="hint">Use auto to follow VS Code when supported, or pick a fixed extension UI language.</div>
+    </div>
+    <div class="field">
       <label for="maxScanFiles">Max Scan Files</label>
       <input type="number" id="maxScanFiles" value="${model.maxScanFiles}" min="100" step="100">
       <div class="hint">Caps source scanning work for large repositories.</div>
     </div>
   </section>
+
+  <h2>Scan Scheduling</h2>
+  <label class="check" for="scanOnStartup"><input type="checkbox" id="scanOnStartup"${model.scanOnStartup ? ' checked' : ''}> Run a scan when Lens starts</label>
+  <label class="check" for="autoScanOnSave"><input type="checkbox" id="autoScanOnSave"${model.autoScanOnSave ? ' checked' : ''}> Auto-scan after editor saves</label>
+  <div class="hint">Automatic scans are off by default to keep extension-host CPU and memory low. Use Save and Scan or the Scan Workspace command for manual scans.</div>
 
   <h2>Excluded Folders</h2>
   <div class="list-editor" id="excludeList">${model.exclude.map((v) => row(v)).join('')}</div>
@@ -111,7 +124,10 @@ export function renderSettingsHtml(model: LensSettingsViewModel): string {
       return {
         localeDirectory: document.getElementById('localeDir').value.trim(),
         sourceLocale: document.getElementById('sourceLocale').value.trim() || 'en',
-        maxScanFiles: parseInt(document.getElementById('maxScanFiles').value, 10) || 3000,
+        extensionLanguage: document.getElementById('extensionLanguage').value,
+        scanOnStartup: document.getElementById('scanOnStartup').checked,
+        autoScanOnSave: document.getElementById('autoScanOnSave').checked,
+        maxScanFiles: parseInt(document.getElementById('maxScanFiles').value, 10) || 1000,
         exclude: [...document.getElementById('excludeList').querySelectorAll('input')].map(e => e.value.trim()).filter(Boolean),
         customWrappers: [...document.getElementById('wrapperList').querySelectorAll('input')].map(e => e.value.trim()).filter(Boolean),
         keyFormats: [...document.querySelectorAll('input[id^="keyFormat"]:checked')].map(e => e.value),
@@ -144,6 +160,19 @@ function row(value: string): string {
 
 function checked(values: string[], value: string): string {
   return values.includes(value) ? ' checked' : '';
+}
+
+function languageOptions(value: string): string {
+  const labels: Record<string, string> = {
+    auto: 'Auto',
+    en: 'English',
+    es: 'Spanish',
+    fr: 'French',
+    de: 'German'
+  };
+  return Object.entries(labels)
+    .map(([key, label]) => `<option value="${escapeAttr(key)}"${key === value ? ' selected' : ''}>${escapeAttr(label)}</option>`)
+    .join('');
 }
 
 function escapeAttr(value: string): string {

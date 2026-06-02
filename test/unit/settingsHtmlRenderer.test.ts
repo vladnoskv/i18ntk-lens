@@ -6,6 +6,9 @@ test('renderSettingsHtml escapes settings values and includes CSP nonce', () => 
   const html = renderSettingsHtml({
     localeDirectory: 'locales/"bad"',
     sourceLocale: 'en',
+    extensionLanguage: 'auto',
+    scanOnStartup: false,
+    autoScanOnSave: false,
     maxScanFiles: 3000,
     exclude: ['node_modules', '<script>'],
     customWrappers: ['tx', '" onclick="alert(1)'],
@@ -19,5 +22,8 @@ test('renderSettingsHtml escapes settings values and includes CSP nonce', () => 
   assert.match(html, /&quot; onclick=&quot;alert\(1\)/);
   assert.match(html, /id="keyFormatDot"[^>]*checked/);
   assert.match(html, /id="keyFormatSnake"[^>]*checked/);
+  assert.match(html, /id="extensionLanguage"/);
+  assert.match(html, /id="scanOnStartup"/);
+  assert.match(html, /id="autoScanOnSave"/);
   assert.doesNotMatch(html, /value="locales\/"bad""/);
 });

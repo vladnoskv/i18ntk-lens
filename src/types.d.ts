@@ -1,12 +1,14 @@
 declare const __dirname: string;
 declare const process: {
   cwd(): string;
+  env: Record<string, string | undefined>;
 };
 declare const console: {
   log(...args: unknown[]): void;
   warn(...args: unknown[]): void;
   error(...args: unknown[]): void;
 };
+declare function require(id: string): any;
 declare module 'node:fs' {
   const fs: any;
   export = fs;

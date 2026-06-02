@@ -39,6 +39,7 @@ export interface LensScanResult {
 }
 
 const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx', '.vue', '.svelte', '.html']);
+const MAX_SOURCE_USAGE_SCAN_BYTES = 2 * 1024 * 1024;
 const KNOWN_WRAPPERS = ['t', 'i18n.t', 'translate', '$t', 'tx', '__', '_t', '__t', 'i18n'];
 const NAMESPACE_HELPERS = [
   'useTranslations',
@@ -73,6 +74,7 @@ export async function scanWorkspace(config: LensConfig, customWrappers: string[]
   const usages: Array<{ key: string; dynamic: boolean; filePath: string; range: TextRange }> = [];
   for (const filePath of sourceFiles) {
     const text = await fs.promises.readFile(filePath, 'utf8').catch(() => '');
+    if (text.length > MAX_SOURCE_USAGE_SCAN_BYTES) continue;
     for (const match of findTranslationKeys(text, customWrappers, keyFormats)) {
       const usageKeys = selectUsageKeys(match, locales, keyValues, keyFormats);
       if (usageKeys.length) {

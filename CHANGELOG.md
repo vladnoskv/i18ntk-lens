@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.3 - 2026-06-02
+
+- Kept Lens manual-by-default by disabling activation scans and save-triggered scans unless explicitly enabled.
+- Added `i18ntkLens.scanOnStartup` and `i18ntkLens.autoScanOnSave` settings.
+- Expanded the Lens settings webview with a Scan Scheduling section that explains the CPU and memory tradeoffs for automatic scans.
+- Fixed overlapping Lens scans by reusing the in-flight scan.
+- Reduced default scan breadth from 3000 to 1000 source files and skipped source files larger than 2 MB during usage scanning.
+
+## 1.1.2 - 2026-06-02
+
+- Added i18ntk-powered extension UI localization with English, Spanish, French, and German locale bundles under `src/i18ntk/locales`.
+- Added the `i18ntkLens.extensionLanguage` setting so users can follow VS Code display language or choose an extension UI language explicitly.
+- Localized Lens commands, notifications, settings UI copy, and extension webview labels through the i18ntk runtime wrapper.
+- Added locale copy scripts so packaged builds include i18ntk locale assets.
+- Added tests that verify language switching, interpolation, fallback behavior, locale key coverage, and placeholder parity for every extension UI locale.
+- Bumped the packaged i18ntk dependency reference to `i18ntk-4.4.2.tgz`.
+
 ## 1.1.1 - 2026-06-02
 
 - Removed generic function-call key extraction so ordinary app calls such as `get("next")`, `headers.get("etag")`, and `clearWaitlist("admin.panel")` are not reported as missing translation keys.

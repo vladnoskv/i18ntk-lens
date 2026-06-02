@@ -1,0 +1,23 @@
+{
+  "lens": {
+    "messages": {
+      "workspaceRequired": "i18ntk Lens: open a workspace first.",
+      "scanComplete": "i18ntk Lens scan complete: {locales} locales, {missing} missing key usages, {unused} unused keys.",
+      "error": "i18ntk Lens: {message}",
+      "keyNotFound": "i18ntk Lens: key \"{key}\" was not found in locale files.",
+      "autoTranslateProtectionAdded": "i18ntk Lens: added \"{key}\" to Auto Translate protection keys.",
+      "missingTranslation": "Missing translation for key \"{key}\" in: {locales}",
+      "unusedTranslation": "Translation key \"{key}\" appears unused.",
+      "autoTranslateResidual": "Auto Translate could not finish \"{key}\" for {locale}. Retry only unresolved values, or add this key to placeholder protection if it should stay unchanged."
+    },
+    "titles": {
+      "openTranslationKey": "Translation key to open",
+      "protectTranslationKey": "Translation key to protect during Auto Translate",
+      "missingLocales": "i18ntk: missing {locales}",
+      "openKey": "i18ntk: open key"
+    },
+    "actions": {
+      "addAutoTranslateProtection": "Add key to Auto Translate placeholder protection"
+    }
+  }
+}

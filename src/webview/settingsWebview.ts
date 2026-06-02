@@ -26,11 +26,14 @@ export class LensSettingsPanel {
     const config = vscode.workspace.getConfiguration('i18ntkLens');
     const localeDir = config.get('localeDirectory', '');
     const sourceLocale = config.get('sourceLocale', 'en');
-    const maxScanFiles = config.get('maxScanFiles', 3000);
+    const extensionLanguage = config.get('extensionLanguage', 'auto');
+    const scanOnStartup = config.get('scanOnStartup', false);
+    const autoScanOnSave = config.get('autoScanOnSave', false);
+    const maxScanFiles = config.get('maxScanFiles', 1000);
     const exclude = config.get('exclude', []) as string[];
     const customWrappers = config.get('customWrappers', []) as string[];
     const keyFormats = config.get('keyFormats', ['dot', 'snake']) as string[];
-    return renderSettingsHtml({ localeDirectory: localeDir, sourceLocale, maxScanFiles, exclude, customWrappers, keyFormats, nonce: createNonce() });
+    return renderSettingsHtml({ localeDirectory: localeDir, sourceLocale, extensionLanguage, scanOnStartup, autoScanOnSave, maxScanFiles, exclude, customWrappers, keyFormats, nonce: createNonce() });
   }
 
   private static async handleMessage(message: any): Promise<void> {
@@ -39,6 +42,9 @@ export class LensSettingsPanel {
       const d = message.data;
       await config.update('localeDirectory', d.localeDirectory, vscode.ConfigurationTarget.Workspace);
       await config.update('sourceLocale', d.sourceLocale, vscode.ConfigurationTarget.Workspace);
+      await config.update('extensionLanguage', d.extensionLanguage, vscode.ConfigurationTarget.Workspace);
+      await config.update('scanOnStartup', d.scanOnStartup, vscode.ConfigurationTarget.Workspace);
+      await config.update('autoScanOnSave', d.autoScanOnSave, vscode.ConfigurationTarget.Workspace);
       await config.update('maxScanFiles', d.maxScanFiles, vscode.ConfigurationTarget.Workspace);
       await config.update('exclude', d.exclude, vscode.ConfigurationTarget.Workspace);
       await config.update('customWrappers', d.customWrappers, vscode.ConfigurationTarget.Workspace);
@@ -51,6 +57,9 @@ export class LensSettingsPanel {
     if (message.command === 'reset') {
       await config.update('localeDirectory', undefined, vscode.ConfigurationTarget.Workspace);
       await config.update('sourceLocale', undefined, vscode.ConfigurationTarget.Workspace);
+      await config.update('extensionLanguage', undefined, vscode.ConfigurationTarget.Workspace);
+      await config.update('scanOnStartup', undefined, vscode.ConfigurationTarget.Workspace);
+      await config.update('autoScanOnSave', undefined, vscode.ConfigurationTarget.Workspace);
       await config.update('maxScanFiles', undefined, vscode.ConfigurationTarget.Workspace);
       await config.update('exclude', undefined, vscode.ConfigurationTarget.Workspace);
       await config.update('customWrappers', undefined, vscode.ConfigurationTarget.Workspace);

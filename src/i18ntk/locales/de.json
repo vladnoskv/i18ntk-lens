@@ -1,0 +1,23 @@
+{
+  "lens": {
+    "messages": {
+      "workspaceRequired": "i18ntk Lens: Öffne zuerst einen Arbeitsbereich.",
+      "scanComplete": "i18ntk Lens-Scan abgeschlossen: {locales} Sprachen, {missing} fehlende Schlüsselverwendungen, {unused} ungenutzte Schlüssel.",
+      "error": "i18ntk Lens: {message}",
+      "keyNotFound": "i18ntk Lens: Schlüssel \"{key}\" wurde in den Sprachdateien nicht gefunden.",
+      "autoTranslateProtectionAdded": "i18ntk Lens: \"{key}\" wurde den geschützten Schlüsseln von Auto Translate hinzugefügt.",
+      "missingTranslation": "Fehlende Übersetzung für Schlüssel \"{key}\" in: {locales}",
+      "unusedTranslation": "Der Übersetzungsschlüssel \"{key}\" scheint ungenutzt zu sein.",
+      "autoTranslateResidual": "Auto Translate konnte \"{key}\" für {locale} nicht abschließen. Wiederhole nur ungelöste Werte, oder füge diesen Schlüssel zum Platzhalterschutz hinzu, falls er unverändert bleiben soll."
+    },
+    "titles": {
+      "openTranslationKey": "Zu öffnender Übersetzungsschlüssel",
+      "protectTranslationKey": "Übersetzungsschlüssel, der bei Auto Translate geschützt wird",
+      "missingLocales": "i18ntk: fehlt in {locales}",
+      "openKey": "i18ntk: Schlüssel öffnen"
+    },
+    "actions": {
+      "addAutoTranslateProtection": "Schlüssel zum Platzhalterschutz von Auto Translate hinzufügen"
+    }
+  }
+}

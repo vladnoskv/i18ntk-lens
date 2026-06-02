@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import fs from 'node:fs';
 import path from 'node:path';
+import { setExtensionLanguage, t } from './i18ntk/localization';
 import { findTranslationKeyAt, findTranslationKeys, KeyFormat, LensConfig, LensScanResult, scanWorkspace } from './scanner';
 import { LensSettingsPanel } from './webview/settingsWebview';
 
@@ -21,8 +22,10 @@ const ACTION_SELECTORS: vscode.DocumentSelector = [
 
 let current: LensScanResult | undefined;
 let currentConfig: LensConfig | undefined;
+let currentScan: Promise<void> | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
+  setExtensionLanguage(vscode.workspace.getConfiguration('i18ntkLens').get('extensionLanguage', 'auto'));
   const output = vscode.window.createOutputChannel('i18ntk Lens');
   const diagnostics = vscode.languages.createDiagnosticCollection('i18ntk Lens');
   const codeLensProvider = new LensCodeLensProvider();
@@ -36,28 +39,18 @@ export function activate(context: vscode.ExtensionContext): void {
       providedCodeActionKinds: [vscode.CodeActionKind.QuickFix]
     }),
     vscode.commands.registerCommand('i18ntkLens.scan', async () => {
-      try {
-        const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-        if (!root) {
-          vscode.window.showWarningMessage('i18ntk Lens: open a workspace first.');
-          return;
-        }
-        currentConfig = await resolveConfig(root);
-        current = await scanWorkspace(currentConfig, getCustomWrappers());
-        updateDiagnostics(diagnostics, current);
-        codeLensProvider.refresh();
-        vscode.window.showInformationMessage(`i18ntk Lens scan complete: ${current.locales.length} locales, ${current.missing.length} missing key usages, ${current.unused.length} unused keys.`);
-      } catch (error) {
-        output.appendLine(error instanceof Error ? error.stack ?? error.message : String(error));
-        vscode.window.showErrorMessage(`i18ntk Lens: ${error instanceof Error ? error.message : String(error)}`);
-      }
+      if (currentScan) return currentScan;
+      currentScan = runLensScan(output, diagnostics, codeLensProvider).finally(() => {
+        currentScan = undefined;
+      });
+      return currentScan;
     }),
     vscode.commands.registerCommand('i18ntkLens.openKeyInLocaleFiles', async (key?: string) => {
-      const actualKey = key ?? await vscode.window.showInputBox({ title: 'Translation key to open' });
+      const actualKey = key ?? await vscode.window.showInputBox({ title: t('lens.titles.openTranslationKey') });
       if (!actualKey || !current) return;
       const files = current.keyFiles[actualKey] ?? [];
       if (files.length === 0) {
-        vscode.window.showWarningMessage(`i18ntk Lens: key "${actualKey}" was not found in locale files.`);
+        vscode.window.showWarningMessage(t('lens.messages.keyNotFound', { key: actualKey }));
         return;
       }
       for (const file of files.slice(0, 8)) {
@@ -65,17 +58,22 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }),
     vscode.commands.registerCommand('i18ntkLens.addAutoTranslatePlaceholder', async (key?: string) => {
-      const actualKey = key ?? await vscode.window.showInputBox({ title: 'Translation key to protect during Auto Translate' });
+      const actualKey = key ?? await vscode.window.showInputBox({ title: t('lens.titles.protectTranslationKey') });
       const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
       if (!actualKey || !root) return;
       await addAutoTranslateProtectionKey(root, actualKey);
-      vscode.window.showInformationMessage(`i18ntk Lens: added "${actualKey}" to Auto Translate protection keys.`);
+      vscode.window.showInformationMessage(t('lens.messages.autoTranslateProtectionAdded', { key: actualKey }));
       vscode.commands.executeCommand('i18ntkLens.scan');
     }),
     vscode.workspace.onDidSaveTextDocument(async () => {
+      if (!vscode.workspace.getConfiguration('i18ntkLens').get('autoScanOnSave', false)) return;
       if (currentConfig) {
-        current = await scanWorkspace(currentConfig, getCustomWrappers());
-        updateDiagnostics(diagnostics, current);
+        await vscode.commands.executeCommand('i18ntkLens.scan');
+      }
+    }),
+    vscode.workspace.onDidChangeConfiguration((event: vscode.ConfigurationChangeEvent) => {
+      if (event.affectsConfiguration('i18ntkLens.extensionLanguage')) {
+        setExtensionLanguage(vscode.workspace.getConfiguration('i18ntkLens').get('extensionLanguage', 'auto'));
         codeLensProvider.refresh();
       }
     }),
@@ -84,10 +82,34 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
-  vscode.commands.executeCommand('i18ntkLens.scan');
+  if (vscode.workspace.getConfiguration('i18ntkLens').get('scanOnStartup', false)) {
+    vscode.commands.executeCommand('i18ntkLens.scan');
+  }
 }
 
 export function deactivate(): void {}
+
+async function runLensScan(output: vscode.OutputChannel, diagnostics: vscode.DiagnosticCollection, codeLensProvider: LensCodeLensProvider): Promise<void> {
+      try {
+        const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (!root) {
+          vscode.window.showWarningMessage(t('lens.messages.workspaceRequired'));
+          return;
+        }
+        currentConfig = await resolveConfig(root);
+        current = await scanWorkspace(currentConfig, getCustomWrappers());
+        updateDiagnostics(diagnostics, current);
+        codeLensProvider.refresh();
+        vscode.window.showInformationMessage(t('lens.messages.scanComplete', {
+          locales: current.locales.length,
+          missing: current.missing.length,
+          unused: current.unused.length
+        }));
+      } catch (error) {
+        output.appendLine(error instanceof Error ? error.stack ?? error.message : String(error));
+        vscode.window.showErrorMessage(t('lens.messages.error', { message: error instanceof Error ? error.message : String(error) }));
+      }
+}
 
 class LensHoverProvider implements vscode.HoverProvider {
   provideHover(document: vscode.TextDocument, position: vscode.Position): vscode.ProviderResult<vscode.Hover> {
@@ -117,7 +139,9 @@ class LensCodeLensProvider implements vscode.CodeLensProvider {
     if (!current) return [];
     return findTranslationKeys(document.getText(), getCustomWrappers(), getKeyFormats()).map((match) => {
       const missing = current?.locales.filter((locale) => current?.keyValues[locale]?.[match.key] === undefined) ?? [];
-      const title = missing.length ? `i18ntk: missing ${missing.join(', ')}` : 'i18ntk: open key';
+      const title = missing.length
+        ? t('lens.titles.missingLocales', { locales: missing.join(', ') })
+        : t('lens.titles.openKey');
       return new vscode.CodeLens(
         new vscode.Range(match.range.startLine, 0, match.range.startLine, 0),
         { title, command: 'i18ntkLens.openKeyInLocaleFiles', arguments: [match.key] }
@@ -133,12 +157,12 @@ class LensCodeActionProvider implements vscode.CodeActionProvider {
       if (diagnostic.source !== 'i18ntk Lens' || diagnostic.code !== 'i18ntk.autoTranslateResidual') continue;
       const key = (diagnostic as any).data?.key;
       if (!key) continue;
-      const action = new vscode.CodeAction('Add key to Auto Translate placeholder protection', vscode.CodeActionKind.QuickFix);
+      const action = new vscode.CodeAction(t('lens.actions.addAutoTranslateProtection'), vscode.CodeActionKind.QuickFix);
       action.diagnostics = [diagnostic];
       action.isPreferred = true;
       action.command = {
         command: 'i18ntkLens.addAutoTranslatePlaceholder',
-        title: 'Add key to Auto Translate placeholder protection',
+        title: t('lens.actions.addAutoTranslateProtection'),
         arguments: [key]
       };
       actions.push(action);
@@ -172,7 +196,7 @@ async function resolveConfig(rootPath: string): Promise<LensConfig> {
     rootPath,
     localeDirectory: configuredLocaleDir ? path.resolve(rootPath, configuredLocaleDir) : await detectLocaleDirectory(rootPath),
     sourceLocale: cfg.get('sourceLocale', 'en'),
-    maxScanFiles: cfg.get('maxScanFiles', 3000),
+    maxScanFiles: cfg.get('maxScanFiles', 1000),
     exclude: cfg.get('exclude', ['node_modules', '.git', '.next', 'dist', 'build', 'coverage']),
     keyFormats: getKeyFormats()
   };
@@ -207,7 +231,7 @@ function updateDiagnostics(collection: vscode.DiagnosticCollection, result: Lens
   for (const missing of result.missing) {
     const diagnostic = new vscode.Diagnostic(
       new vscode.Range(missing.range.startLine, missing.range.startCharacter, missing.range.endLine, missing.range.endCharacter),
-      `Missing translation for key "${missing.key}" in: ${missing.locales.join(', ')}`,
+      t('lens.messages.missingTranslation', { key: missing.key, locales: missing.locales.join(', ') }),
       vscode.DiagnosticSeverity.Warning
     );
     diagnostic.source = 'i18ntk Lens';
@@ -216,7 +240,7 @@ function updateDiagnostics(collection: vscode.DiagnosticCollection, result: Lens
   for (const unused of result.unused) {
     const diagnostic = new vscode.Diagnostic(
       new vscode.Range(0, 0, 0, 1),
-      `Translation key "${unused.key}" appears unused.`,
+      t('lens.messages.unusedTranslation', { key: unused.key }),
       vscode.DiagnosticSeverity.Information
     );
     diagnostic.source = 'i18ntk Lens';
@@ -227,7 +251,7 @@ function updateDiagnostics(collection: vscode.DiagnosticCollection, result: Lens
     const range = residual.range ?? { startLine: 0, startCharacter: 0, endLine: 0, endCharacter: 1 };
     const diagnostic = new vscode.Diagnostic(
       new vscode.Range(range.startLine, range.startCharacter, range.endLine, range.endCharacter),
-      `Auto Translate could not finish "${residual.key}" for ${residual.locale}. Retry only unresolved values, or add this key to placeholder protection if it should stay unchanged.`,
+      t('lens.messages.autoTranslateResidual', { key: residual.key, locale: residual.locale }),
       vscode.DiagnosticSeverity.Warning
     );
     diagnostic.source = 'i18ntk Lens';
