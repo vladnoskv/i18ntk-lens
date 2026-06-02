@@ -12,7 +12,7 @@ i18ntk Lens adds fast inline translation visibility to VS Code: hover values, Co
 
 It is a lightweight companion to the zero-dependency `i18ntk` npm package. Lens is standalone and does not add an Activity Bar container, so if i18ntk Workbench is installed too, Workbench remains the single i18ntk sidebar while Lens keeps the editor feedback close to your code.
 
-## Latest in 1.1.0
+## Latest in 1.1.1
 
 - Source scanning no longer treats arbitrary function calls or methods like `get("next")`, `headers.get("etag")`, or `clearWaitlist("admin.panel")` as translation keys.
 - Explicit translation wrappers, configured custom wrappers, namespace helpers, dynamic templates, and imported locale-object reads remain supported.
