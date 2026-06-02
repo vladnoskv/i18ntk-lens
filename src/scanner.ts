@@ -35,6 +35,7 @@ export interface LensScanResult {
   usages: Array<{ key: string; filePath: string; range: TextRange }>;
   missing: Array<{ key: string; locales: string[]; filePath: string; range: TextRange }>;
   unused: Array<{ key: string; filePath: string }>;
+  autoTranslateResiduals: Array<{ key: string; locale: string; value: string; fileName?: string; filePath?: string; range?: TextRange }>;
 }
 
 const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx', '.vue', '.svelte', '.html']);
@@ -96,7 +97,8 @@ export async function scanWorkspace(config: LensConfig, customWrappers: string[]
     .filter((key) => !usages.some((usage) => usageMatchesKey(usage, key, keyFormats)))
     .map((key) => ({ key, filePath: keyFiles[key]?.[0] ?? config.localeDirectory }));
 
-  return { locales, keyValues, keyFiles, usages, missing, unused };
+  const autoTranslateResiduals = await collectAutoTranslateResiduals(config.rootPath, localeFiles);
+  return { locales, keyValues, keyFiles, usages, missing, unused, autoTranslateResiduals };
 }
 
 export function findTranslationKeys(text: string, customWrappers: string[] = [], keyFormats: KeyFormat[] = ['dot', 'snake']): KeyMatch[] {
@@ -460,6 +462,39 @@ async function loadLocaleFile(locale: string, filePath: string): Promise<{ local
   }
 }
 
+async function collectAutoTranslateResiduals(rootPath: string, localeFiles: Array<{ locale: string; filePath: string; values: Record<string, string> }>): Promise< LensScanResult['autoTranslateResiduals']> {
+  const reportPath = path.join(rootPath, 'i18ntk-reports', 'auto-translate', 'latest.json');
+  let parsed: any;
+  try {
+    parsed = JSON.parse(await fs.promises.readFile(reportPath, 'utf8'));
+  } catch {
+    return [];
+  }
+  if (parsed?.kind !== 'i18ntk.autoTranslateResiduals' || !Array.isArray(parsed.items)) return [];
+  const locale = String(parsed.targetLang || '').trim();
+  if (!locale) return [];
+  return parsed.items
+    .map((item: any) => {
+      const key = String(item?.keyPath || '').trim();
+      if (!key) return undefined;
+      const fileName = String(item?.fileName || '');
+      const localeFile = localeFiles.find((file) =>
+        file.locale === locale &&
+        file.values[key] !== undefined &&
+        (!fileName || path.basename(file.filePath) === fileName)
+      ) ?? localeFiles.find((file) => file.locale === locale && file.values[key] !== undefined);
+      return {
+        key,
+        locale,
+        value: String(item?.value || ''),
+        fileName,
+        filePath: localeFile?.filePath,
+        range: { startLine: 0, startCharacter: 0, endLine: 0, endCharacter: 1 }
+      };
+    })
+    .filter(Boolean) as LensScanResult['autoTranslateResiduals'];
+}
+
 function flattenJson(value: unknown, prefix = ''): Record<string, string> {
   const result: Record<string, string> = {};
   if (!value || typeof value !== 'object' || Array.isArray(value)) return result;
@@ -511,4 +546,41 @@ function positionAt(text: string, offset: number): { line: number; character: nu
   const before = text.slice(0, offset);
   const lines = before.split(/\r?\n/);
   return { line: lines.length - 1, character: lines[lines.length - 1].length };
+}
+
+export function detectSuspectedCopyFormatters(text: string): Array<{ name: string; line: number; type: string; message: string }> {
+  const formatters: Array<{ name: string; line: number; type: string; message: string }> = [];
+  const declarationPattern = /\b(?:const|let|var)\s+(tx)\s*=\s*(?:useCallback\s*\(|useMemo\s*\(|\([^)]*\)\s*=>|function\s*\()/g;
+  let match;
+  while ((match = declarationPattern.exec(text)) !== null) {
+    const afterEquals = text.slice(match.index + match[0].length, Math.min(match.index + match[0].length + 500, text.length));
+    const callsTranslationRuntime = /\b(?:t|i18n\.t|\.getTranslation|translate)\s*\(/.test(afterEquals);
+    if (!callsTranslationRuntime) {
+      const before = text.slice(0, match.index);
+      formatters.push({
+        name: 'tx',
+        line: before.split(/\r?\n/).length,
+        type: 'suspectedCopyFormatter',
+        message: `Local function "tx" does not call a known translation runtime and may be a copy formatter. Rename to "copy" or configure "copyFormatters".`,
+      });
+    }
+  }
+  return formatters;
+}
+
+export function findClientBoundaryLocaleImports(text: string): Array<{ importPath: string; message: string }> {
+  const issues: Array<{ importPath: string; message: string }> = [];
+  const isClient = /['"]use client['"]/.test(text) || /['"]use client['"]/.test(String(text || '').slice(0, 200));
+  if (!isClient) return issues;
+  const importPattern = /\bimport\s+\w+\s+from\s+['"]([^'"]+\.json)['"]/g;
+  let match;
+  while ((match = importPattern.exec(text)) !== null) {
+    if (/\b(locales?|i18n|translations?)\b/i.test(match[1])) {
+      issues.push({
+        importPath: match[1],
+        message: `"use client" file imports locale JSON (${match[1]}). This bypasses the translation runtime and increases client bundle size. Use a server bridge route instead.`,
+      });
+    }
+  }
+  return issues;
 }

@@ -20,7 +20,7 @@ test('manifest keeps Lens standalone without adding a second Activity Bar icon',
   assert.equal(manifest.contributes?.viewsContainers, undefined);
   assert.deepEqual(
     manifest.contributes?.commands?.map((entry) => entry.command).sort(),
-    ['i18ntkLens.openKeyInLocaleFiles', 'i18ntkLens.openSettings', 'i18ntkLens.scan']
+    ['i18ntkLens.addAutoTranslatePlaceholder', 'i18ntkLens.openKeyInLocaleFiles', 'i18ntkLens.openSettings', 'i18ntkLens.scan']
   );
 });
 

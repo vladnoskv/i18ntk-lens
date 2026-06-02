@@ -17,6 +17,7 @@ It is a lightweight companion to the zero-dependency `i18ntk` npm package. Lens 
 - Source scanning no longer treats arbitrary function calls or methods like `get("next")`, `headers.get("etag")`, or `clearWaitlist("admin.panel")` as translation keys.
 - Explicit translation wrappers, configured custom wrappers, namespace helpers, dynamic templates, and imported locale-object reads remain supported.
 - Unused-key diagnostics are advisory; verify usages before deleting locale keys.
+- Auto Translate residual reports are picked up from `i18ntk-reports/auto-translate/latest.json`, shown on the affected locale JSON key, and include a quick fix to add intentionally unchanged keys to Auto Translate protection.
 
 ## Latest in 1.0.2
 
@@ -64,7 +65,9 @@ Requirements:
 - **CodeLens indicators**: shows whether target locales are missing for each detected key.
 - **Missing key diagnostics**: warns in source files when a used key has no value in one or more locales.
 - **Unused key diagnostics**: marks source-locale keys that appear unused.
+- **Auto Translate residual diagnostics**: marks keys left unresolved by Auto Translate after its targeted retry, using the CLI resume report.
 - **Open key across files**: jumps from a source key to matching locale files.
+- **Protection quick fix**: adds intentionally unchanged residual keys to `i18ntk-auto-translate.json` protection.
 - **Settings webview**: manages locale directory, source locale, scan limits, exclusions, and custom wrappers.
 - **Inline-only UI**: no duplicate i18ntk Activity Bar icon when Workbench is installed.
 - **Local-first behavior**: reads workspace files locally and sends no telemetry.
@@ -75,6 +78,7 @@ Requirements:
 | --- | --- | --- |
 | `i18ntk Lens: Scan Workspace` | Re-scans locale and source files, then refreshes hovers, CodeLens, and diagnostics. | No file changes. |
 | `i18ntk Lens: Open Key in Locale Files` | Opens locale files containing a given key. | No file changes. |
+| `i18ntk Lens: Add Key to Auto Translate Protection` | Adds a translation key to `i18ntk-auto-translate.json` so Auto Translate keeps it unchanged. | Auto Translate protection file. |
 | `i18ntk Lens: Open Settings` | Opens the Lens settings webview. | Workspace settings when saved. |
 
 ## Settings
@@ -132,6 +136,8 @@ npx i18ntk --command=usage
 npx i18ntk --command=summary
 npx i18ntk-translate locales/en/common.json fr --report-stdout
 ```
+
+If Auto Translate writes `i18ntk-reports/auto-translate/latest.json` because a provider still returned untranslated values after retry, Lens surfaces those residual keys inline during the next scan. Use the quick fix when the key should be protected instead of translated.
 
 Use i18ntk Workbench when you want the VS Code sidebar, reports, key management, setup flow, and CLI-backed Auto Translate from inside the editor.
 

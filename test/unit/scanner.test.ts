@@ -236,3 +236,33 @@ test('scanWorkspace treats imported namespace object property reads as key usage
   assert.deepEqual(result.missing, []);
   assert.deepEqual(result.unused.map((item) => item.key), ['unused']);
 });
+
+test('scanWorkspace reports auto translate residuals from the CLI resume report', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'i18ntk-lens-'));
+  await fs.mkdir(path.join(root, 'locales', 'en'), { recursive: true });
+  await fs.mkdir(path.join(root, 'locales', 'ar'), { recursive: true });
+  await fs.mkdir(path.join(root, 'src'), { recursive: true });
+  await fs.mkdir(path.join(root, 'i18ntk-reports', 'auto-translate'), { recursive: true });
+  await fs.writeFile(path.join(root, 'locales', 'en', 'home.json'), JSON.stringify({ offer: 'What We Offer' }, null, 2));
+  await fs.writeFile(path.join(root, 'locales', 'ar', 'home.json'), JSON.stringify({ offer: '[AR] What We Offer' }, null, 2));
+  await fs.writeFile(path.join(root, 'src', 'app.ts'), 'const offer = t("offer");');
+  await fs.writeFile(path.join(root, 'i18ntk-reports', 'auto-translate', 'latest.json'), JSON.stringify({
+    kind: 'i18ntk.autoTranslateResiduals',
+    targetLang: 'ar',
+    items: [{ fileName: 'home.json', keyPath: 'offer', value: '[AR] What We Offer' }]
+  }));
+
+  const result = await scanWorkspace({
+    rootPath: root,
+    localeDirectory: path.join(root, 'locales'),
+    sourceLocale: 'en',
+    maxScanFiles: 100,
+    exclude: ['node_modules', '.git'],
+    keyFormats: ['dot']
+  });
+
+  assert.deepEqual(result.autoTranslateResiduals.map((item) => [item.locale, item.key, item.value]), [
+    ['ar', 'offer', '[AR] What We Offer']
+  ]);
+  assert.equal(result.autoTranslateResiduals[0].filePath?.endsWith(path.join('locales', 'ar', 'home.json')), true);
+});

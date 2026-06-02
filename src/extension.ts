@@ -14,6 +14,11 @@ const SELECTORS: vscode.DocumentSelector = [
   { scheme: 'file', language: 'html' }
 ];
 
+const ACTION_SELECTORS: vscode.DocumentSelector = [
+  ...SELECTORS,
+  { scheme: 'file', language: 'json' }
+];
+
 let current: LensScanResult | undefined;
 let currentConfig: LensConfig | undefined;
 
@@ -27,6 +32,9 @@ export function activate(context: vscode.ExtensionContext): void {
     diagnostics,
     vscode.languages.registerHoverProvider(SELECTORS, new LensHoverProvider()),
     vscode.languages.registerCodeLensProvider(SELECTORS, codeLensProvider),
+    vscode.languages.registerCodeActionsProvider(ACTION_SELECTORS, new LensCodeActionProvider(), {
+      providedCodeActionKinds: [vscode.CodeActionKind.QuickFix]
+    }),
     vscode.commands.registerCommand('i18ntkLens.scan', async () => {
       try {
         const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -55,6 +63,14 @@ export function activate(context: vscode.ExtensionContext): void {
       for (const file of files.slice(0, 8)) {
         await vscode.window.showTextDocument(vscode.Uri.file(file), { preview: false });
       }
+    }),
+    vscode.commands.registerCommand('i18ntkLens.addAutoTranslatePlaceholder', async (key?: string) => {
+      const actualKey = key ?? await vscode.window.showInputBox({ title: 'Translation key to protect during Auto Translate' });
+      const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!actualKey || !root) return;
+      await addAutoTranslateProtectionKey(root, actualKey);
+      vscode.window.showInformationMessage(`i18ntk Lens: added "${actualKey}" to Auto Translate protection keys.`);
+      vscode.commands.executeCommand('i18ntkLens.scan');
     }),
     vscode.workspace.onDidSaveTextDocument(async () => {
       if (currentConfig) {
@@ -108,6 +124,45 @@ class LensCodeLensProvider implements vscode.CodeLensProvider {
       );
     });
   }
+}
+
+class LensCodeActionProvider implements vscode.CodeActionProvider {
+  provideCodeActions(_document: vscode.TextDocument, _range: vscode.Range, context: vscode.CodeActionContext): vscode.CodeAction[] {
+    const actions: vscode.CodeAction[] = [];
+    for (const diagnostic of context.diagnostics) {
+      if (diagnostic.source !== 'i18ntk Lens' || diagnostic.code !== 'i18ntk.autoTranslateResidual') continue;
+      const key = (diagnostic as any).data?.key;
+      if (!key) continue;
+      const action = new vscode.CodeAction('Add key to Auto Translate placeholder protection', vscode.CodeActionKind.QuickFix);
+      action.diagnostics = [diagnostic];
+      action.isPreferred = true;
+      action.command = {
+        command: 'i18ntkLens.addAutoTranslatePlaceholder',
+        title: 'Add key to Auto Translate placeholder protection',
+        arguments: [key]
+      };
+      actions.push(action);
+    }
+    return actions;
+  }
+}
+
+async function addAutoTranslateProtectionKey(rootPath: string, key: string): Promise<void> {
+  const filePath = path.join(rootPath, 'i18ntk-auto-translate.json');
+  let config: any = {};
+  try {
+    config = JSON.parse(await fs.promises.readFile(filePath, 'utf8'));
+  } catch {
+    config = { version: 1, terms: [], keys: [], values: [], patterns: [] };
+  }
+  const keys = new Set(Array.isArray(config.keys) ? config.keys.filter((item: unknown): item is string => typeof item === 'string') : []);
+  keys.add(key);
+  config.version = typeof config.version === 'number' ? config.version : 1;
+  config.terms = Array.isArray(config.terms) ? config.terms : [];
+  config.keys = [...keys].sort();
+  config.values = Array.isArray(config.values) ? config.values : [];
+  config.patterns = Array.isArray(config.patterns) ? config.patterns : [];
+  await fs.promises.writeFile(filePath, JSON.stringify(config, null, 2) + '\n', 'utf8');
 }
 
 async function resolveConfig(rootPath: string): Promise<LensConfig> {
@@ -166,6 +221,19 @@ function updateDiagnostics(collection: vscode.DiagnosticCollection, result: Lens
     );
     diagnostic.source = 'i18ntk Lens';
     byFile.set(unused.filePath, [...(byFile.get(unused.filePath) ?? []), diagnostic]);
+  }
+  for (const residual of result.autoTranslateResiduals) {
+    if (!residual.filePath) continue;
+    const range = residual.range ?? { startLine: 0, startCharacter: 0, endLine: 0, endCharacter: 1 };
+    const diagnostic = new vscode.Diagnostic(
+      new vscode.Range(range.startLine, range.startCharacter, range.endLine, range.endCharacter),
+      `Auto Translate could not finish "${residual.key}" for ${residual.locale}. Retry only unresolved values, or add this key to placeholder protection if it should stay unchanged.`,
+      vscode.DiagnosticSeverity.Warning
+    );
+    diagnostic.source = 'i18ntk Lens';
+    diagnostic.code = 'i18ntk.autoTranslateResidual';
+    (diagnostic as any).data = { key: residual.key, locale: residual.locale, value: residual.value };
+    byFile.set(residual.filePath, [...(byFile.get(residual.filePath) ?? []), diagnostic]);
   }
   for (const [filePath, diagnostics] of byFile) {
     collection.set(vscode.Uri.file(filePath), diagnostics);
