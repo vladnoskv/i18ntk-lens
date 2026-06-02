@@ -142,6 +142,8 @@ function findCallsForName(
   staticValues: Map<string, string[]>,
   allowSingleSegment: boolean
 ): KeyMatch[] {
+  // Safety: reject excessively long wrapper names that could cause ReDoS
+  if (name.length > 100) return [];
   const matches: KeyMatch[] = [];
   const pattern = new RegExp(`${callBoundaryForName(name)}${escapeRegExp(name)}\\s*\\(\\s*(['"\`])`, 'g');
   let match: RegExpExecArray | null;

@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.3 - 2026-06-01
+## 1.1.0 - 2026-06-02
 
 - Removed generic function-call key extraction so ordinary app calls such as `get("next")`, `headers.get("etag")`, and `clearWaitlist("admin.panel")` are not reported as missing translation keys.
 - Kept explicit translation wrappers, configured custom wrappers, namespace helpers, dynamic templates, and imported locale-object reads as supported usage signals.
