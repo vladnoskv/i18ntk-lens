@@ -57,5 +57,5 @@ test('package scripts include compile, locale asset copy, unit test, aggregate t
 });
 
 test('manifest depends on the packaged i18ntk runtime', () => {
-  assert.equal(manifest.dependencies?.i18ntk, 'file:../i18ntk-4.4.2.tgz');
+  assert.equal(manifest.dependencies?.i18ntk, 'file:../i18ntk-4.4.4.tgz');
 });

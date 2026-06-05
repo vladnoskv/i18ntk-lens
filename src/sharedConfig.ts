@@ -1,0 +1,103 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import * as vscode from 'vscode';
+
+export interface SharedI18ntkConfig {
+  version?: string;
+  sourceDir?: string;
+  i18nDir?: string;
+  outputDir?: string;
+  sourceLanguage?: string;
+  excludeDirs?: string[];
+  extensions?: {
+    workbench?: Record<string, unknown>;
+    lens?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+export interface LensSharedSettings {
+  localeDirectory?: string;
+  sourceLocale?: string;
+  extensionLanguage?: string;
+  scanOnStartup?: boolean;
+  autoScanOnSave?: boolean;
+  maxScanFiles?: number;
+  exclude?: string[];
+  customWrappers?: string[];
+  keyFormats?: string[];
+}
+
+const CONFIG_FILE = '.i18ntk-config';
+
+type ConfigInspection<T> = {
+  globalValue?: T;
+  workspaceValue?: T;
+  workspaceFolderValue?: T;
+};
+
+export async function loadSharedConfig(rootPath: string): Promise<SharedI18ntkConfig | undefined> {
+  try {
+    const raw = await fs.readFile(path.join(rootPath, CONFIG_FILE), 'utf8');
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as SharedI18ntkConfig : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function getSharedLensSettings(config: SharedI18ntkConfig | undefined): LensSharedSettings {
+  const section = config?.extensions?.lens;
+  const lens = section && typeof section === 'object' && !Array.isArray(section)
+    ? section as LensSharedSettings
+    : {};
+  return {
+    ...lens,
+    localeDirectory: lens.localeDirectory || stringValue(config?.i18nDir) || stringValue(config?.sourceDir),
+    sourceLocale: lens.sourceLocale || stringValue(config?.sourceLanguage),
+    exclude: lens.exclude || stringArray(config?.excludeDirs)
+  };
+}
+
+export async function saveSharedLensSettings(rootPath: string, data: LensSharedSettings): Promise<void> {
+  const current = await loadSharedConfig(rootPath) ?? {};
+  const extensions = current.extensions && typeof current.extensions === 'object' && !Array.isArray(current.extensions)
+    ? current.extensions
+    : {};
+  const lens = extensions.lens && typeof extensions.lens === 'object' && !Array.isArray(extensions.lens)
+    ? extensions.lens as Record<string, unknown>
+    : {};
+  const next: SharedI18ntkConfig = {
+    ...current,
+    version: stringValue(current.version) || '4.4.4',
+    sourceLanguage: data.sourceLocale || stringValue(current.sourceLanguage) || 'en',
+    i18nDir: data.localeDirectory || stringValue(current.i18nDir) || stringValue(current.sourceDir) || './locales',
+    sourceDir: stringValue(current.sourceDir) || data.localeDirectory || './locales',
+    outputDir: stringValue(current.outputDir) || './i18ntk-reports',
+    extensions: {
+      ...extensions,
+      lens: {
+        ...lens,
+        ...data
+      }
+    }
+  };
+  await fs.writeFile(path.join(rootPath, CONFIG_FILE), `${JSON.stringify(next, null, 2)}\n`, 'utf8');
+}
+
+export function getConfigValue<T>(namespace: string, key: string, sharedValue: T | undefined, defaultValue: T): T {
+  const config = vscode.workspace.getConfiguration(namespace) as vscode.WorkspaceConfiguration;
+  const inspected = config.inspect(key) as ConfigInspection<T> | undefined;
+  const explicit = inspected?.workspaceFolderValue ?? inspected?.workspaceValue ?? inspected?.globalValue;
+  if (explicit !== undefined) return explicit;
+  return sharedValue !== undefined ? sharedValue : defaultValue;
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function stringArray(value: unknown): string[] | undefined {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : undefined;
+}

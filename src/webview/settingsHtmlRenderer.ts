@@ -9,6 +9,7 @@ export interface LensSettingsViewModel {
   customWrappers: string[];
   keyFormats: string[];
   nonce: string;
+  sharedRoot?: string;
 }
 
 export function renderSettingsHtml(model: LensSettingsViewModel): string {
@@ -50,6 +51,7 @@ export function renderSettingsHtml(model: LensSettingsViewModel): string {
   <header>
     <h1>i18ntk Lens Settings</h1>
     <p>Configure inline translation hovers, CodeLens indicators, diagnostics, and source scanning for this workspace.</p>
+    <p>${model.sharedRoot ? 'Settings are synced with .i18ntk-config when saved.' : 'Open a workspace to sync settings with .i18ntk-config.'}</p>
   </header>
 
   <section class="grid">

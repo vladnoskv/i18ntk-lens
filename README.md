@@ -12,6 +12,12 @@ i18ntk Lens adds fast inline translation visibility to VS Code: hover values, Co
 
 It is a lightweight companion to the zero-dependency `i18ntk` npm package. Lens is standalone and does not add an Activity Bar container, so if i18ntk Workbench is installed too, Workbench remains the single i18ntk sidebar while Lens keeps the editor feedback close to your code.
 
+## Latest in 1.1.5
+
+- **Shared Project Config**: Lens reads locale directory, source locale, scan scheduling, custom wrappers, and key format defaults from `.i18ntk-config` under `extensions.lens`.
+- **Language Pack Fallback**: the extension follows the active VS Code display language when a shipped Lens locale exists and falls back to English for unsupported languages.
+- **Settings Sync**: Lens settings writes update the shared project config while explicit VS Code settings continue to take precedence.
+
 ## Latest in 1.1.3
 
 - Lens no longer scans automatically on activation or save unless you enable the new scan scheduling settings.
@@ -68,7 +74,7 @@ Requirements:
 ## Quick Start
 
 1. Open a project with locale files, for example `locales/en/common.json` and `locales/fr/common.json`.
-2. Lens auto-scans when the extension activates.
+2. Run `i18ntk Lens: Scan Workspace`, or enable `i18ntkLens.scanOnStartup` if you want activation scans.
 3. Hover over a detected translation key to see values across locales.
 4. Use CodeLens or `i18ntk Lens: Open Key in Locale Files` to jump to locale files.
 5. Use `i18ntk Lens: Open Settings` to configure locale discovery, source locale, scan limits, exclusions, and custom wrappers.
@@ -83,6 +89,7 @@ Requirements:
 - **Open key across files**: jumps from a source key to matching locale files.
 - **Protection quick fix**: adds intentionally unchanged residual keys to `i18ntk-auto-translate.json` protection.
 - **Settings webview**: manages locale directory, source locale, scan limits, exclusions, and custom wrappers.
+- **Shared config**: reads and writes Lens-owned defaults under `.i18ntk-config` -> `extensions.lens`.
 - **Inline-only UI**: no duplicate i18ntk Activity Bar icon when Workbench is installed.
 - **Local-first behavior**: reads workspace files locally and sends no telemetry.
 
@@ -101,7 +108,10 @@ Requirements:
 | --- | --- | --- | --- |
 | `i18ntkLens.localeDirectory` | string | `""` | Locale directory path. Empty means auto-detect. |
 | `i18ntkLens.sourceLocale` | string | `"en"` | Source/default locale code. |
-| `i18ntkLens.maxScanFiles` | number | `3000` | Maximum source files to scan. |
+| `i18ntkLens.extensionLanguage` | string | `"auto"` | Follow VS Code display language when supported, or force `en`, `es`, `fr`, or `de`. |
+| `i18ntkLens.scanOnStartup` | boolean | `false` | Run a scan when Lens activates. |
+| `i18ntkLens.autoScanOnSave` | boolean | `false` | Run a scan after editor saves. |
+| `i18ntkLens.maxScanFiles` | number | `1000` | Maximum source files to scan. |
 | `i18ntkLens.exclude` | array | `["node_modules", ".git", ".next", "dist", "build", "coverage"]` | Folders excluded from scans. |
 | `i18ntkLens.customWrappers` | array | `[]` | Additional translation wrapper names, such as `tx`, `__`, or `_t`. |
 | `i18ntkLens.keyFormats` | array | `["dot", "snake"]` | Key formats to detect and match. Enable dot, snake, or both. |

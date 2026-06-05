@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.5 - 2026-06-05
+
+- Lens now follows the active VS Code display language when a shipped locale bundle exists, with a clean English fallback for unsupported languages.
+- Added shared `.i18ntk-config` support under `extensions.lens`; existing VS Code settings still take precedence.
+- Lens reads shared locale directory, source locale, scan scheduling, custom wrappers, and key format defaults from project config.
+- The settings webview now opens with shared config values and writes extension-owned changes back to `.i18ntk-config`.
+
 ## 1.1.3 - 2026-06-02
 
 - Kept Lens manual-by-default by disabling activation scans and save-triggered scans unless explicitly enabled.

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { renderSettingsHtml } from './settingsHtmlRenderer';
+import { getConfigValue, getSharedLensSettings, loadSharedConfig, saveSharedLensSettings } from '../sharedConfig';
 
 export class LensSettingsPanel {
   private static panel: vscode.WebviewPanel | undefined;
@@ -19,27 +20,42 @@ export class LensSettingsPanel {
     this.panel = panel;
     panel.onDidDispose(() => { this.panel = undefined; }, null, context.subscriptions);
     panel.webview.onDidReceiveMessage(this.handleMessage, null, context.subscriptions);
-    panel.webview.html = this.getHtml();
+    panel.webview.html = '<!DOCTYPE html><html><body>Loading...</body></html>';
+    void this.render();
   }
 
-  private static getHtml(): string {
-    const config = vscode.workspace.getConfiguration('i18ntkLens');
-    const localeDir = config.get('localeDirectory', '');
-    const sourceLocale = config.get('sourceLocale', 'en');
-    const extensionLanguage = config.get('extensionLanguage', 'auto');
-    const scanOnStartup = config.get('scanOnStartup', false);
-    const autoScanOnSave = config.get('autoScanOnSave', false);
-    const maxScanFiles = config.get('maxScanFiles', 1000);
-    const exclude = config.get('exclude', []) as string[];
-    const customWrappers = config.get('customWrappers', []) as string[];
-    const keyFormats = config.get('keyFormats', ['dot', 'snake']) as string[];
-    return renderSettingsHtml({ localeDirectory: localeDir, sourceLocale, extensionLanguage, scanOnStartup, autoScanOnSave, maxScanFiles, exclude, customWrappers, keyFormats, nonce: createNonce() });
+  private static async getHtmlAsync(): Promise<string> {
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const shared = getSharedLensSettings(root ? await loadSharedConfig(root) : undefined);
+    return renderSettingsHtml({
+      localeDirectory: getConfigValue('i18ntkLens', 'localeDirectory', shared.localeDirectory, ''),
+      sourceLocale: getConfigValue('i18ntkLens', 'sourceLocale', shared.sourceLocale, 'en'),
+      extensionLanguage: getConfigValue('i18ntkLens', 'extensionLanguage', shared.extensionLanguage, 'auto'),
+      scanOnStartup: getConfigValue('i18ntkLens', 'scanOnStartup', shared.scanOnStartup, false),
+      autoScanOnSave: getConfigValue('i18ntkLens', 'autoScanOnSave', shared.autoScanOnSave, false),
+      maxScanFiles: getConfigValue('i18ntkLens', 'maxScanFiles', shared.maxScanFiles, 1000),
+      exclude: getConfigValue('i18ntkLens', 'exclude', shared.exclude, []),
+      customWrappers: getConfigValue('i18ntkLens', 'customWrappers', shared.customWrappers, []),
+      keyFormats: getConfigValue('i18ntkLens', 'keyFormats', shared.keyFormats, ['dot', 'snake']),
+      nonce: createNonce(),
+      sharedRoot: root
+    });
+  }
+
+  private static async render(): Promise<void> {
+    if (this.panel) {
+      this.panel.webview.html = await this.getHtmlAsync();
+    }
   }
 
   private static async handleMessage(message: any): Promise<void> {
     const config = vscode.workspace.getConfiguration('i18ntkLens');
     if (message.command === 'save' || message.command === 'saveAndScan') {
       const d = message.data;
+      const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (root) {
+        await saveSharedLensSettings(root, d);
+      }
       await config.update('localeDirectory', d.localeDirectory, vscode.ConfigurationTarget.Workspace);
       await config.update('sourceLocale', d.sourceLocale, vscode.ConfigurationTarget.Workspace);
       await config.update('extensionLanguage', d.extensionLanguage, vscode.ConfigurationTarget.Workspace);
@@ -65,7 +81,7 @@ export class LensSettingsPanel {
       await config.update('customWrappers', undefined, vscode.ConfigurationTarget.Workspace);
       await config.update('keyFormats', undefined, vscode.ConfigurationTarget.Workspace);
       if (this.panel) {
-        this.panel.webview.html = this.getHtml();
+        this.panel.webview.html = await this.getHtmlAsync();
       }
     }
   }

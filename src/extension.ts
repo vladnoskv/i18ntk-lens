@@ -4,6 +4,7 @@ import path from 'node:path';
 import { setExtensionLanguage, t } from './i18ntk/localization';
 import { findTranslationKeyAt, findTranslationKeys, KeyFormat, LensConfig, LensScanResult, scanWorkspace } from './scanner';
 import { LensSettingsPanel } from './webview/settingsWebview';
+import { getConfigValue, getSharedLensSettings, loadSharedConfig } from './sharedConfig';
 
 const SELECTORS: vscode.DocumentSelector = [
   { scheme: 'file', language: 'javascript' },
@@ -23,12 +24,13 @@ const ACTION_SELECTORS: vscode.DocumentSelector = [
 let current: LensScanResult | undefined;
 let currentConfig: LensConfig | undefined;
 let currentScan: Promise<void> | undefined;
+let currentCustomWrappers: string[] | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
-  setExtensionLanguage(vscode.workspace.getConfiguration('i18ntkLens').get('extensionLanguage', 'auto'));
   const output = vscode.window.createOutputChannel('i18ntk Lens');
   const diagnostics = vscode.languages.createDiagnosticCollection('i18ntk Lens');
   const codeLensProvider = new LensCodeLensProvider();
+  void applyInitialSharedSettings(codeLensProvider);
 
   context.subscriptions.push(
     output,
@@ -66,14 +68,17 @@ export function activate(context: vscode.ExtensionContext): void {
       vscode.commands.executeCommand('i18ntkLens.scan');
     }),
     vscode.workspace.onDidSaveTextDocument(async () => {
-      if (!vscode.workspace.getConfiguration('i18ntkLens').get('autoScanOnSave', false)) return;
+      const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!root) return;
+      const shared = getSharedLensSettings(await loadSharedConfig(root));
+      if (!getConfigValue('i18ntkLens', 'autoScanOnSave', shared.autoScanOnSave, false)) return;
       if (currentConfig) {
         await vscode.commands.executeCommand('i18ntkLens.scan');
       }
     }),
     vscode.workspace.onDidChangeConfiguration((event: vscode.ConfigurationChangeEvent) => {
       if (event.affectsConfiguration('i18ntkLens.extensionLanguage')) {
-        setExtensionLanguage(vscode.workspace.getConfiguration('i18ntkLens').get('extensionLanguage', 'auto'));
+        setExtensionLanguage(vscode.workspace.getConfiguration('i18ntkLens').get('extensionLanguage', 'auto'), vscode.env.language);
         codeLensProvider.refresh();
       }
     }),
@@ -82,9 +87,7 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
-  if (vscode.workspace.getConfiguration('i18ntkLens').get('scanOnStartup', false)) {
-    vscode.commands.executeCommand('i18ntkLens.scan');
-  }
+  void runStartupScanIfEnabled();
 }
 
 export function deactivate(): void {}
@@ -97,6 +100,7 @@ async function runLensScan(output: vscode.OutputChannel, diagnostics: vscode.Dia
           return;
         }
         currentConfig = await resolveConfig(root);
+        currentCustomWrappers = await resolveCustomWrappers(root);
         current = await scanWorkspace(currentConfig, getCustomWrappers());
         updateDiagnostics(diagnostics, current);
         codeLensProvider.refresh();
@@ -109,6 +113,22 @@ async function runLensScan(output: vscode.OutputChannel, diagnostics: vscode.Dia
         output.appendLine(error instanceof Error ? error.stack ?? error.message : String(error));
         vscode.window.showErrorMessage(t('lens.messages.error', { message: error instanceof Error ? error.message : String(error) }));
       }
+}
+
+async function applyInitialSharedSettings(codeLensProvider: LensCodeLensProvider): Promise<void> {
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const shared = getSharedLensSettings(root ? await loadSharedConfig(root) : undefined);
+  setExtensionLanguage(getConfigValue('i18ntkLens', 'extensionLanguage', shared.extensionLanguage, 'auto'), vscode.env.language);
+  codeLensProvider.refresh();
+}
+
+async function runStartupScanIfEnabled(): Promise<void> {
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!root) return;
+  const shared = getSharedLensSettings(await loadSharedConfig(root));
+  if (getConfigValue('i18ntkLens', 'scanOnStartup', shared.scanOnStartup, false)) {
+    await vscode.commands.executeCommand('i18ntkLens.scan');
+  }
 }
 
 class LensHoverProvider implements vscode.HoverProvider {
@@ -190,24 +210,37 @@ async function addAutoTranslateProtectionKey(rootPath: string, key: string): Pro
 }
 
 async function resolveConfig(rootPath: string): Promise<LensConfig> {
-  const cfg = vscode.workspace.getConfiguration('i18ntkLens');
-  const configuredLocaleDir = cfg.get('localeDirectory', '');
+  const shared = getSharedLensSettings(await loadSharedConfig(rootPath));
+  const configuredLocaleDir = getConfigValue('i18ntkLens', 'localeDirectory', shared.localeDirectory, '');
   return {
     rootPath,
     localeDirectory: configuredLocaleDir ? path.resolve(rootPath, configuredLocaleDir) : await detectLocaleDirectory(rootPath),
-    sourceLocale: cfg.get('sourceLocale', 'en'),
-    maxScanFiles: cfg.get('maxScanFiles', 1000),
-    exclude: cfg.get('exclude', ['node_modules', '.git', '.next', 'dist', 'build', 'coverage']),
-    keyFormats: getKeyFormats()
+    sourceLocale: getConfigValue('i18ntkLens', 'sourceLocale', shared.sourceLocale, 'en'),
+    maxScanFiles: getConfigValue('i18ntkLens', 'maxScanFiles', shared.maxScanFiles, 1000),
+    exclude: getConfigValue('i18ntkLens', 'exclude', shared.exclude, ['node_modules', '.git', '.next', 'dist', 'build', 'coverage']),
+    keyFormats: resolveKeyFormats(shared)
   };
 }
 
 function getCustomWrappers(): string[] {
+  if (currentCustomWrappers) return currentCustomWrappers;
   return (vscode.workspace.getConfiguration('i18ntkLens').get('customWrappers') ?? []) as string[];
 }
 
 function getKeyFormats(): KeyFormat[] {
+  if (currentConfig?.keyFormats?.length) return currentConfig.keyFormats;
   const configured = (vscode.workspace.getConfiguration('i18ntkLens').get('keyFormats') ?? ['dot', 'snake']) as string[];
+  const formats = configured.filter((item): item is KeyFormat => item === 'dot' || item === 'snake');
+  return formats.length ? formats : ['dot', 'snake'];
+}
+
+async function resolveCustomWrappers(rootPath: string): Promise<string[]> {
+  const shared = getSharedLensSettings(await loadSharedConfig(rootPath));
+  return getConfigValue('i18ntkLens', 'customWrappers', shared.customWrappers, []);
+}
+
+function resolveKeyFormats(shared: ReturnType<typeof getSharedLensSettings>): KeyFormat[] {
+  const configured = getConfigValue('i18ntkLens', 'keyFormats', shared.keyFormats, ['dot', 'snake']);
   const formats = configured.filter((item): item is KeyFormat => item === 'dot' || item === 'snake');
   return formats.length ? formats : ['dot', 'snake'];
 }
