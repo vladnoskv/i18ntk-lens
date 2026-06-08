@@ -7,6 +7,7 @@ type Runtime = {
 };
 
 let runtime: Runtime | undefined;
+let runtimeLoadFailed = false;
 let fallbackTranslations: Record<string, unknown> | undefined;
 let configuredLanguage = 'auto';
 let preferredDisplayLanguage = '';
@@ -14,7 +15,9 @@ let activeLanguage = 'en';
 
 function getRuntime(): Runtime | undefined {
   if (runtime !== undefined) return runtime;
+  if (runtimeLoadFailed) return undefined;
   runtime = createRuntime();
+  if (!runtime) runtimeLoadFailed = true;
   return runtime;
 }
 
@@ -68,6 +71,7 @@ export function setExtensionLanguage(language: string | undefined, displayLangua
   configuredLanguage = language || 'auto';
   preferredDisplayLanguage = displayLanguage || preferredDisplayLanguage;
   runtime = undefined;
+  runtimeLoadFailed = false;
   fallbackTranslations = undefined;
   activeLanguage = resolveExtensionLanguage(configuredLanguage);
 }

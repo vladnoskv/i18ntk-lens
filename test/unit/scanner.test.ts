@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { findTranslationKeyAt, findTranslationKeys, scanWorkspace } from '../../src/scanner';
+import { findClientBoundaryLocaleImports, findTranslationKeyAt, findTranslationKeys, scanWorkspace } from '../../src/scanner';
 
 test('findTranslationKeys detects built-in and custom wrappers once', () => {
   const text = [
@@ -265,4 +265,60 @@ test('scanWorkspace reports auto translate residuals from the CLI resume report'
     ['ar', 'offer', '[AR] What We Offer']
   ]);
   assert.equal(result.autoTranslateResiduals[0].filePath?.endsWith(path.join('locales', 'ar', 'home.json')), true);
+});
+
+test('findClientBoundaryLocaleImports detects default JSON imports with use client', () => {
+  const text = '\'use client\';\nimport en from "./locales/en/common.json";\n';
+  const results = findClientBoundaryLocaleImports(text);
+  assert.equal(results.length, 1);
+  assert.ok(results[0].importPath.includes('locales'));
+});
+
+test('findClientBoundaryLocaleImports detects import * as JSON imports', () => {
+  const text = '"use client";\nimport * as en from "../../locales/en.json";\n';
+  const results = findClientBoundaryLocaleImports(text);
+  assert.equal(results.length, 1);
+});
+
+test('findClientBoundaryLocaleImports does not flag files without use client', () => {
+  const text = 'import en from "./locales/en/common.json";\n';
+  const results = findClientBoundaryLocaleImports(text);
+  assert.equal(results.length, 0);
+});
+
+test('flattenJson preserves non-string values via scanWorkspace', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'i18ntk-lens-test-'));
+  const localeDir = path.join(root, 'locales', 'en');
+  await fs.mkdir(localeDir, { recursive: true });
+  await fs.writeFile(
+    path.join(localeDir, 'common.json'),
+    JSON.stringify({ enabled: true, count: 10, label: 'hello', nested: { active: false } }, null, 2)
+  );
+  const result = await scanWorkspace({
+    rootPath: root,
+    localeDirectory: path.join(root, 'locales'),
+    sourceLocale: 'en',
+    maxScanFiles: 10,
+    exclude: [],
+    keyFormats: ['dot']
+  });
+  assert.deepEqual(result.keyValues.en, { enabled: 'true', count: '10', label: 'hello', 'nested.active': 'false' });
+  await fs.rm(root, { recursive: true, force: true });
+});
+
+test('scanWorkspace discovers nested locale files beyond one level', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'i18ntk-lens-test-'));
+  const deepDir = path.join(root, 'locales', 'en', 'namespace', 'sub');
+  await fs.mkdir(deepDir, { recursive: true });
+  await fs.writeFile(path.join(deepDir, 'deep.json'), JSON.stringify({ key: 'deep value' }, null, 2));
+  const result = await scanWorkspace({
+    rootPath: root,
+    localeDirectory: path.join(root, 'locales'),
+    sourceLocale: 'en',
+    maxScanFiles: 10,
+    exclude: [],
+    keyFormats: ['dot']
+  });
+  assert.equal(result.keyValues.en?.key, 'deep value');
+  await fs.rm(root, { recursive: true, force: true });
 });

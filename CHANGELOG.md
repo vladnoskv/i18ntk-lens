@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.6 - 2026-06-08
+
+- Fixed an infinite runtime-load retry loop in `localization.ts` that caused redundant `require()` calls on every `t()` invocation when the i18ntk runtime was unavailable, degrading scan performance.
+- Fixed `findCallsForName` in `scanner.ts` where an unterminated quoted string caused a `break` that aborted all subsequent wrapper-call matches in the same file; now skips only the malformed match and continues.
+- Fixed `autoScanOnSave` so it works without a prior manual scan by auto-creating the scan configuration on first save.
+- Fixed the settings webview "Reset to Defaults" action so it now clears shared `.i18ntk-config` values instead of leaving stale defaults that were reapplied on reload.
+- Fixed `saveSharedLensSettings` so `sourceDir` and locale directory (`i18nDir`) are no longer conflated when saving.
+- Cleared module-level state (`current`, `currentConfig`, `currentScan`, `currentCustomWrappers`) on deactivation to prevent stale data after extension reload.
+
 ## 1.1.5 - 2026-06-05
 
 - Lens now follows the active VS Code display language when a shipped locale bundle exists, with a clean English fallback for unsupported languages.

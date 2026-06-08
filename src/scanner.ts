@@ -153,7 +153,10 @@ function findCallsForName(
     const quote = match[1];
     const contentStart = pattern.lastIndex;
     const contentEnd = findQuotedContentEnd(text, contentStart, quote);
-    if (contentEnd === -1) break;
+    if (contentEnd === -1) {
+      pattern.lastIndex = contentStart + 1;
+      continue;
+    }
     const content = text.slice(contentStart, contentEnd);
     const key = parseKeyContent(content, quote, namespace, keyFormats, staticValues, allowSingleSegment);
     if (key) {
@@ -174,7 +177,10 @@ function findRuntimeNamespaceCalls(text: string, name: string, namespace: string
   while ((match = pattern.exec(text)) !== null) {
     const expression = match[1].trim();
     if (!expression || expression.startsWith('{') || expression.startsWith('[')) continue;
-    const start = match.index + match[0].indexOf(expression);
+    const parenStart = match[0].indexOf('(') + 1;
+    const argText = match[0].slice(parenStart).trimStart();
+    const exprOffset = match[0].slice(parenStart).indexOf(argText);
+    const start = match.index + parenStart + exprOffset;
     const end = start + expression.length;
     const resolvedKeys = resolveExpressionValues(expression, staticValues).map((value) => joinNamespace(namespace, value));
     const key = namespace.endsWith('.') || namespace.endsWith('_') ? namespace : `${namespace}.`;
@@ -221,9 +227,13 @@ function findStaticRuntimeValues(text: string): Map<string, string[]> {
     values.set(match[1], [unescapeStringLiteral(match[3])]);
   }
 
-  const arrayDeclaration = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\[([\s\S]*?)\]/g;
+  const arrayDeclaration = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\[/g;
   while ((match = arrayDeclaration.exec(text)) !== null) {
-    const entries = extractStringLiterals(match[2]);
+    const bodyStart = match.index + match[0].length;
+    const bodyEnd = findMatchingBracket(text, bodyStart - 1);
+    if (bodyEnd === -1) continue;
+    const body = text.slice(bodyStart, bodyEnd);
+    const entries = extractStringLiterals(body);
     if (entries.length) values.set(match[1], entries);
   }
 
@@ -437,24 +447,31 @@ function escapeRegExp(value: string): string {
 }
 
 async function discoverLocaleFiles(localeDirectory: string): Promise<Array<{ locale: string; filePath: string; values: Record<string, string> }>> {
-  const files = [];
+  const files: Array<{ locale: string; filePath: string; values: Record<string, string> }> = [];
   const entries = await fs.promises.readdir(localeDirectory, { withFileTypes: true }).catch(() => []);
   for (const entry of entries) {
     const fullPath = path.join(localeDirectory, entry.name);
     if (entry.isDirectory()) {
-      const childEntries = await fs.promises.readdir(fullPath, { withFileTypes: true }).catch(() => []);
-      for (const child of childEntries) {
-        if (child.isFile() && child.name.endsWith('.json')) {
-          const loaded = await loadLocaleFile(entry.name, path.join(fullPath, child.name));
-          if (loaded) files.push(loaded);
-        }
-      }
+      await collectLocaleFiles(fullPath, entry.name, files);
     } else if (entry.isFile() && entry.name.endsWith('.json')) {
       const loaded = await loadLocaleFile(path.basename(entry.name, '.json'), fullPath);
       if (loaded) files.push(loaded);
     }
   }
   return files;
+}
+
+async function collectLocaleFiles(dirPath: string, locale: string, files: Array<{ locale: string; filePath: string; values: Record<string, string> }>): Promise<void> {
+  const entries = await fs.promises.readdir(dirPath, { withFileTypes: true }).catch(() => []);
+  for (const entry of entries) {
+    const fullPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      await collectLocaleFiles(fullPath, locale, files);
+    } else if (entry.isFile() && entry.name.endsWith('.json')) {
+      const loaded = await loadLocaleFile(locale, fullPath);
+      if (loaded) files.push(loaded);
+    }
+  }
 }
 
 async function loadLocaleFile(locale: string, filePath: string): Promise<{ locale: string; filePath: string; values: Record<string, string> } | undefined> {
@@ -501,13 +518,20 @@ async function collectAutoTranslateResiduals(rootPath: string, localeFiles: Arra
 
 function flattenJson(value: unknown, prefix = ''): Record<string, string> {
   const result: Record<string, string> = {};
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return result;
+  if (value === null || value === undefined) return result;
+  if (Array.isArray(value)) return result;
+  if (typeof value !== 'object') {
+    result[prefix || 'value'] = String(value);
+    return result;
+  }
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
     const fullKey = prefix ? `${prefix}.${key}` : key;
     if (child && typeof child === 'object' && !Array.isArray(child)) {
       Object.assign(result, flattenJson(child, fullKey));
-    } else if (typeof child === 'string') {
-      result[fullKey] = child;
+    } else if (child === null) {
+      result[fullKey] = 'null';
+    } else if (child !== undefined) {
+      result[fullKey] = String(child);
     }
   }
   return result;
@@ -552,6 +576,22 @@ function positionAt(text: string, offset: number): { line: number; character: nu
   return { line: lines.length - 1, character: lines[lines.length - 1].length };
 }
 
+function findMatchingBracket(text: string, openIndex: number): number {
+  const open = text[openIndex];
+  if (open !== '[' && open !== '{' && open !== '(') return -1;
+  const close = open === '[' ? ']' : open === '{' ? '}' : ')';
+  let depth = 1;
+  for (let i = openIndex + 1; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === open) depth++;
+    else if (ch === close) {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
 export function detectSuspectedCopyFormatters(text: string): Array<{ name: string; line: number; type: string; message: string }> {
   const formatters: Array<{ name: string; line: number; type: string; message: string }> = [];
   const declarationPattern = /\b(?:const|let|var)\s+(tx)\s*=\s*(?:useCallback\s*\(|useMemo\s*\(|\([^)]*\)\s*=>|function\s*\()/g;
@@ -576,7 +616,7 @@ export function findClientBoundaryLocaleImports(text: string): Array<{ importPat
   const issues: Array<{ importPath: string; message: string }> = [];
   const isClient = /['"]use client['"]/.test(text) || /['"]use client['"]/.test(String(text || '').slice(0, 200));
   if (!isClient) return issues;
-  const importPattern = /\bimport\s+\w+\s+from\s+['"]([^'"]+\.json)['"]/g;
+  const importPattern = /\bimport\s+(?:\*\s+as\s+\w+|type\s+\{[^}]+\}|type\s+\*\s+as\s+\w+|\{[^}]*\}|\w+)\s+from\s+['"]([^'"]+\.json)['"]/g;
   let match;
   while ((match = importPattern.exec(text)) !== null) {
     if (/\b(locales?|i18n|translations?)\b/i.test(match[1])) {

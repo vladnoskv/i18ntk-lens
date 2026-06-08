@@ -72,9 +72,8 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!root) return;
       const shared = getSharedLensSettings(await loadSharedConfig(root));
       if (!getConfigValue('i18ntkLens', 'autoScanOnSave', shared.autoScanOnSave, false)) return;
-      if (currentConfig) {
-        await vscode.commands.executeCommand('i18ntkLens.scan');
-      }
+      await ensureConfig();
+      await vscode.commands.executeCommand('i18ntkLens.scan');
     }),
     vscode.workspace.onDidChangeConfiguration((event: vscode.ConfigurationChangeEvent) => {
       if (event.affectsConfiguration('i18ntkLens.extensionLanguage')) {
@@ -90,7 +89,20 @@ export function activate(context: vscode.ExtensionContext): void {
   void runStartupScanIfEnabled();
 }
 
-export function deactivate(): void {}
+export function deactivate(): void {
+  current = undefined;
+  currentConfig = undefined;
+  currentScan = undefined;
+  currentCustomWrappers = undefined;
+}
+
+async function ensureConfig(): Promise<void> {
+  if (currentConfig) return;
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!root) return;
+  currentConfig = await resolveConfig(root);
+  currentCustomWrappers = await resolveCustomWrappers(root);
+}
 
 async function runLensScan(output: vscode.OutputChannel, diagnostics: vscode.DiagnosticCollection, codeLensProvider: LensCodeLensProvider): Promise<void> {
       try {
@@ -197,6 +209,11 @@ async function addAutoTranslateProtectionKey(rootPath: string, key: string): Pro
   try {
     config = JSON.parse(await fs.promises.readFile(filePath, 'utf8'));
   } catch {
+    const exists = await fs.promises.stat(filePath).then(() => true).catch(() => false);
+    if (exists) {
+      vscode.window.showWarningMessage(t('lens.messages.autoTranslateConfigCorrupt'));
+      return;
+    }
     config = { version: 1, terms: [], keys: [], values: [], patterns: [] };
   }
   const keys = new Set(Array.isArray(config.keys) ? config.keys.filter((item: unknown): item is string => typeof item === 'string') : []);
@@ -298,5 +315,5 @@ function updateDiagnostics(collection: vscode.DiagnosticCollection, result: Lens
 }
 
 function escapeMarkdown(value: string): string {
-  return value.replace(/[\\`*_{}[\]()#+\-.!|]/g, '\\$&');
+  return value.replace(/[\\`|]/g, '\\$&').replace(/\r?\n/g, ' ');
 }

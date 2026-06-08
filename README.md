@@ -12,7 +12,21 @@ i18ntk Lens adds fast inline translation visibility to VS Code: hover values, Co
 
 It is a lightweight companion to the zero-dependency `i18ntk` npm package. Lens is standalone and does not add an Activity Bar container, so if i18ntk Workbench is installed too, Workbench remains the single i18ntk sidebar while Lens keeps the editor feedback close to your code.
 
-## Latest in 1.1.5
+## Latest in 1.1.6
+
+- **Runtime Load Optimization**: Fixed infinite retry loop in the i18ntk runtime loader, eliminating redundant `require()` calls on every translation lookup when the runtime is unavailable.
+- **Scanner Robustness**: Unterminated quoted strings no longer abort all subsequent wrapper-call matches in the same file — only the malformed match is skipped.
+- **autoScanOnSave Independence**: `autoScanOnSave` now works without a prior manual scan by auto-creating the scan configuration on first save.
+- **Settings Reset Fix**: The settings webview "Reset to Defaults" now properly clears shared `.i18ntk-config` values and writes the cleaned file to disk.
+- **JSON Value Preservation**: `flattenJson` now preserves boolean, number, and null values as strings instead of silently dropping them from scan data.
+- **Nested Directory Discovery**: Locale file discovery now recursively traverses deeply nested subdirectories instead of stopping at one level.
+- **Client Boundary Detection**: `import * as` and destructured JSON locale imports are now detected in `'use client'` boundary checks.
+- **Hover Quality**: `escapeMarkdown` no longer over-escapes marks that are safe inside table cells (dots, hyphens, asterisks), and newlines are replaced with spaces.
+- **Config Data Safety**: Malformed `i18ntk-auto-translate.json` files are now preserved with a warning instead of being silently replaced with defaults.
+- **Offset Accuracy**: Fixed argument position calculation in `findRuntimeNamespaceCalls` so cursor ranges point at the actual argument instead of the function name.
+- **Array Pattern Robustness**: Array literal extraction now correctly handles nested brackets using bracket-matching instead of fragile lazy quantifiers.
+
+## Previous (1.1.5)
 
 - **Shared Project Config**: Lens reads locale directory, source locale, scan scheduling, custom wrappers, and key format defaults from `.i18ntk-config` under `extensions.lens`.
 - **Language Pack Fallback**: the extension follows the active VS Code display language when a shipped Lens locale exists and falls back to English for unsupported languages.

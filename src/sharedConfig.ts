@@ -54,7 +54,7 @@ export function getSharedLensSettings(config: SharedI18ntkConfig | undefined): L
     : {};
   return {
     ...lens,
-    localeDirectory: lens.localeDirectory || stringValue(config?.i18nDir) || stringValue(config?.sourceDir),
+    localeDirectory: lens.localeDirectory || stringValue(config?.i18nDir) || (stringValue(config?.sourceDir) && config?.i18nDir ? stringValue(config?.i18nDir) : undefined),
     sourceLocale: lens.sourceLocale || stringValue(config?.sourceLanguage),
     exclude: lens.exclude || stringArray(config?.excludeDirs)
   };
@@ -70,10 +70,10 @@ export async function saveSharedLensSettings(rootPath: string, data: LensSharedS
     : {};
   const next: SharedI18ntkConfig = {
     ...current,
-    version: stringValue(current.version) || '4.4.4',
+    version: stringValue(current.version) || '4.4.5',
     sourceLanguage: data.sourceLocale || stringValue(current.sourceLanguage) || 'en',
-    i18nDir: data.localeDirectory || stringValue(current.i18nDir) || stringValue(current.sourceDir) || './locales',
-    sourceDir: stringValue(current.sourceDir) || data.localeDirectory || './locales',
+    i18nDir: data.localeDirectory || stringValue(current.i18nDir) || './locales',
+    sourceDir: stringValue(current.sourceDir) || './src',
     outputDir: stringValue(current.outputDir) || './i18ntk-reports',
     extensions: {
       ...extensions,

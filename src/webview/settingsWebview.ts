@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { renderSettingsHtml } from './settingsHtmlRenderer';
 import { getConfigValue, getSharedLensSettings, loadSharedConfig, saveSharedLensSettings } from '../sharedConfig';
+
+const CONFIG_FILE = '.i18ntk-config';
 
 export class LensSettingsPanel {
   private static panel: vscode.WebviewPanel | undefined;
@@ -71,6 +75,24 @@ export class LensSettingsPanel {
       }
     }
     if (message.command === 'reset') {
+      const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      const configPath = root ? path.join(root, CONFIG_FILE) : undefined;
+      if (configPath) {
+        const current = await loadSharedConfig(root!);
+        if (current?.extensions && typeof current.extensions === 'object' && !Array.isArray(current.extensions)) {
+          const exts = current.extensions as Record<string, unknown>;
+          if (exts.lens && typeof exts.lens === 'object' && !Array.isArray(exts.lens)) {
+            const lensSection = exts.lens as Record<string, unknown>;
+            const lensKeys = ['localeDirectory', 'sourceLocale', 'extensionLanguage', 'scanOnStartup', 'autoScanOnSave', 'maxScanFiles', 'exclude', 'customWrappers', 'keyFormats'];
+            for (const key of lensKeys) delete lensSection[key];
+          }
+        }
+        try {
+          await fs.writeFile(configPath, `${JSON.stringify(current, null, 2)}\n`, 'utf8');
+        } catch {
+          // File not writable — VS Code settings still reset below.
+        }
+      }
       await config.update('localeDirectory', undefined, vscode.ConfigurationTarget.Workspace);
       await config.update('sourceLocale', undefined, vscode.ConfigurationTarget.Workspace);
       await config.update('extensionLanguage', undefined, vscode.ConfigurationTarget.Workspace);
