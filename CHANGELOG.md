@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.0 - 2026-07-04
+
+### Added
+
+- **Framework-specific file extensions:** Added `.astro`, `.mdx`, `.mjs`, `.mts`, `.cjs`, `.cts`, `.rs` to `SOURCE_EXTENSIONS`. Astro components, ESM modules, and Rust source files are now scanned for translation keys.
+- **JSX Component Detection:** Added `findJsxComponentKeys()` to `scanner.ts` — detects `<Trans i18nKey>`, `<FormattedMessage id>`, `<FormattedMessage defaultMessage>`, `<t message>`, and `<Translate id>` JSX components.
+- **Framework-specific activation events:** Lens now activates on `app/i18n`, `content/locales`, `lang`, `messages`, and i18n config file paths.
+- **Framework-specific exclude defaults:** Added `.nuxt`, `.output`, `.astro`, `.svelte-kit`, `.cache`, `__generated__`, `target` to exclude defaults.
+
+### Changed
+
+- **Document selectors:** Added `astro` language ID for hover and CodeLens providers.
+- **Exclude defaults (package.json):** Updated to match new framework-specific defaults.
+
 ## 1.1.6 - 2026-06-08
 
 - Fixed an infinite runtime-load retry loop in `localization.ts` that caused redundant `require()` calls on every `t()` invocation when the i18ntk runtime was unavailable, degrading scan performance.

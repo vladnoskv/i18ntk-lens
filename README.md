@@ -2,202 +2,78 @@
 
 ![i18ntk Lens icon](media/icon.png)
 
-[![VS Code Marketplace](https://img.shields.io/badge/VS_Code-i18ntk_Lens-007ACC?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=VladNoskov.i18ntk-lens)
-[![npm version](https://img.shields.io/npm/v/i18ntk.svg?color=brightgreen)](https://www.npmjs.com/package/i18ntk)
-[![npm downloads](https://img.shields.io/npm/dt/i18ntk.svg)](https://www.npmjs.com/package/i18ntk)
-[![node](https://img.shields.io/badge/node-%3E%3D16-339933)](https://nodejs.org)
-[![dependencies](https://img.shields.io/badge/i18ntk_dependencies-0-success)](https://www.npmjs.com/package/i18ntk)
+[![VS Code Marketplace](https://img.shields.io/badge/VS_Code-Lens-007ACC?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=VladNoskov.i18ntk-lens)
 
-i18ntk Lens adds fast inline translation visibility to VS Code: hover values, CodeLens coverage hints, missing-key warnings, unused-key diagnostics, key navigation, and workspace settings.
+i18ntk Lens adds fast inline translation visibility to VS Code. Hover values, CodeLens coverage hints, missing-key warnings, unused-key diagnostics, key navigation, and workspace settings — all close to your code. Lens is standalone and does not add an Activity Bar icon.
 
-It is a lightweight companion to the zero-dependency `i18ntk` npm package. Lens is standalone and does not add an Activity Bar container, so if i18ntk Workbench is installed too, Workbench remains the single i18ntk sidebar while Lens keeps the editor feedback close to your code.
+## Latest in 1.2.0
 
-## Latest in 1.1.6
+- **JSX Component Detection**: `<Trans i18nKey>`, `<FormattedMessage id>`, `<FormattedMessage defaultMessage>`, `<t message>`, `<Translate id>` detected
+- **Astro + ESM Support**: `.astro`, `.mdx`, `.mjs`, `.mts`, `.cjs`, `.cts`, `.rs` file scanning
+- **Astro Language Support**: hover and CodeLens on `astro` language files
+- **Framework Activation**: activates on `app/i18n`, `content/locales`, `lang`, `messages` paths
+- **Exclude Defaults**: `.nuxt`, `.output`, `.astro`, `.svelte-kit`, `.cache`, `__generated__`, `target`
 
-- **Runtime Load Optimization**: Fixed infinite retry loop in the i18ntk runtime loader, eliminating redundant `require()` calls on every translation lookup when the runtime is unavailable.
-- **Scanner Robustness**: Unterminated quoted strings no longer abort all subsequent wrapper-call matches in the same file — only the malformed match is skipped.
-- **autoScanOnSave Independence**: `autoScanOnSave` now works without a prior manual scan by auto-creating the scan configuration on first save.
-- **Settings Reset Fix**: The settings webview "Reset to Defaults" now properly clears shared `.i18ntk-config` values and writes the cleaned file to disk.
-- **JSON Value Preservation**: `flattenJson` now preserves boolean, number, and null values as strings instead of silently dropping them from scan data.
-- **Nested Directory Discovery**: Locale file discovery now recursively traverses deeply nested subdirectories instead of stopping at one level.
-- **Client Boundary Detection**: `import * as` and destructured JSON locale imports are now detected in `'use client'` boundary checks.
-- **Hover Quality**: `escapeMarkdown` no longer over-escapes marks that are safe inside table cells (dots, hyphens, asterisks), and newlines are replaced with spaces.
-- **Config Data Safety**: Malformed `i18ntk-auto-translate.json` files are now preserved with a warning instead of being silently replaced with defaults.
-- **Offset Accuracy**: Fixed argument position calculation in `findRuntimeNamespaceCalls` so cursor ranges point at the actual argument instead of the function name.
-- **Array Pattern Robustness**: Array literal extraction now correctly handles nested brackets using bracket-matching instead of fragile lazy quantifiers.
+## Features
 
-## Previous (1.1.5)
+### Inline Feedback
+- **Translation Hovers** — hover `t('key')` to see values in every configured language
+- **CodeLens** — per-key coverage indicators showing how many target languages have translations
+- **Missing-Key Diagnostics** — keys used in source but absent from target locale files
+- **Unused-Key Diagnostics** — keys in locale files with no source references (advisory)
 
-- **Shared Project Config**: Lens reads locale directory, source locale, scan scheduling, custom wrappers, and key format defaults from `.i18ntk-config` under `extensions.lens`.
-- **Language Pack Fallback**: the extension follows the active VS Code display language when a shipped Lens locale exists and falls back to English for unsupported languages.
-- **Settings Sync**: Lens settings writes update the shared project config while explicit VS Code settings continue to take precedence.
+### Key Navigation
+- **`i18ntk Lens: Open Key in Locale Files`** — jump from `t('key')` usage to the definition in JSON
+- Built-in scan from settings webview with custom wrapper support
 
-## Latest in 1.1.3
+### Scanner
+- Detects built-in wrappers: `t()`, `$t()`, `i18n.t()`, `useI18n()`, `useTranslation()`, `translate()`, `tx()`
+- Configurable custom wrappers for project-specific patterns
+- Namespace helpers: `useTranslations("scope")` expands to scoped key matching
+- Imported locale JSON object detection: `import en from './locales/en.json'`
+- Dynamic template resolution from static values, arrays, and object maps
+- Snake-case key format support alongside dot notation
 
-- Lens no longer scans automatically on activation or save unless you enable the new scan scheduling settings.
-- New `i18ntkLens.scanOnStartup` and `i18ntkLens.autoScanOnSave` settings make automatic scanning explicit.
-- Repeated Lens scan requests reuse the active scan, and default scan breadth is lower to reduce extension-host CPU and memory use.
-- Very large source files are skipped during usage scanning.
-
-## Latest in 1.1.2
-
-- Lens extension UI messages are now powered by i18ntk locale bundles in English, Spanish, French, and German.
-- New `i18ntkLens.extensionLanguage` setting lets users follow VS Code display language or explicitly choose the Lens UI language.
-- Packaged builds copy `src/i18ntk/locales` into the extension output so the localization runtime works inside VS Code.
-- Locale coverage tests verify every translated Lens UI bundle has the same keys and placeholders as English.
-
-## Latest in 1.1.1
-
-- Source scanning no longer treats arbitrary function calls or methods like `get("next")`, `headers.get("etag")`, or `clearWaitlist("admin.panel")` as translation keys.
-- Explicit translation wrappers, configured custom wrappers, namespace helpers, dynamic templates, and imported locale-object reads remain supported.
-- Unused-key diagnostics are advisory; verify usages before deleting locale keys.
-- Auto Translate residual reports are picked up from `i18ntk-reports/auto-translate/latest.json`, shown on the affected locale JSON key, and include a quick fix to add intentionally unchanged keys to Auto Translate protection.
-
-## Latest in 1.0.2
-
-- Dynamic template keys can now resolve exact static runtime candidates from string constants, string arrays, and iterator callbacks.
-- Scoped runtime helpers such as `useTranslations("news.page")` and imported locale JSON objects such as `common.save` reduce missing/unused false positives.
-- Dot and snake key formats can be enabled together in settings.
-
-## i18ntk CLI Companion
-
-The main `i18ntk` npm package powers the broader workflow:
-
-- setup, scan, analyze, validate, usage, sizing, completion, summary, backup, fixer, and Auto Translate commands
-- zero runtime dependencies
-- Node.js `>=16.0.0`
-- local-first operation, with provider network calls only when you run Auto Translate
-- public npm stats and package health through the badges above
-
-## Install
-
-Install i18ntk Lens from the VS Code Marketplace.
-
-For the full command-line workflow, install the CLI in your project:
-
-```bash
-npm install i18ntk
-```
-
-Requirements:
-
-- VS Code `^1.90.0`
-- Node.js `>=18.0.0`
-- JSON locale files in a supported layout
-
-## Quick Start
-
-1. Open a project with locale files, for example `locales/en/common.json` and `locales/fr/common.json`.
-2. Run `i18ntk Lens: Scan Workspace`, or enable `i18ntkLens.scanOnStartup` if you want activation scans.
-3. Hover over a detected translation key to see values across locales.
-4. Use CodeLens or `i18ntk Lens: Open Key in Locale Files` to jump to locale files.
-5. Use `i18ntk Lens: Open Settings` to configure locale discovery, source locale, scan limits, exclusions, and custom wrappers.
-
-## What You Get
-
-- **Hover translations**: shows values for `t("key")`, `i18n.t("key")`, `translate("key")`, `$t("key")`, configured custom wrappers, scoped runtime helpers, and imported locale JSON objects.
-- **CodeLens indicators**: shows whether target locales are missing for each detected key.
-- **Missing key diagnostics**: warns in source files when a used key has no value in one or more locales.
-- **Unused key diagnostics**: marks source-locale keys that appear unused.
-- **Auto Translate residual diagnostics**: marks keys left unresolved by Auto Translate after its targeted retry, using the CLI resume report.
-- **Open key across files**: jumps from a source key to matching locale files.
-- **Protection quick fix**: adds intentionally unchanged residual keys to `i18ntk-auto-translate.json` protection.
-- **Settings webview**: manages locale directory, source locale, scan limits, exclusions, and custom wrappers.
-- **Shared config**: reads and writes Lens-owned defaults under `.i18ntk-config` -> `extensions.lens`.
-- **Inline-only UI**: no duplicate i18ntk Activity Bar icon when Workbench is installed.
-- **Local-first behavior**: reads workspace files locally and sends no telemetry.
-
-## Command Reference
-
-| Command | What it does | Writes or changes |
-| --- | --- | --- |
-| `i18ntk Lens: Scan Workspace` | Re-scans locale and source files, then refreshes hovers, CodeLens, and diagnostics. | No file changes. |
-| `i18ntk Lens: Open Key in Locale Files` | Opens locale files containing a given key. | No file changes. |
-| `i18ntk Lens: Add Key to Auto Translate Protection` | Adds a translation key to `i18ntk-auto-translate.json` so Auto Translate keeps it unchanged. | Auto Translate protection file. |
-| `i18ntk Lens: Open Settings` | Opens the Lens settings webview. | Workspace settings when saved. |
+### Diagnostics
+- Auto-translate residual detection from CLI resume reports
+- Client boundary warnings for `'use client'` + locale JSON imports
+- Quick-fix: add intentionally unchanged keys to Auto Translate protection
 
 ## Settings
 
-| Setting | Type | Default | Description |
-| --- | --- | --- | --- |
-| `i18ntkLens.localeDirectory` | string | `""` | Locale directory path. Empty means auto-detect. |
-| `i18ntkLens.sourceLocale` | string | `"en"` | Source/default locale code. |
-| `i18ntkLens.extensionLanguage` | string | `"auto"` | Follow VS Code display language when supported, or force `en`, `es`, `fr`, or `de`. |
-| `i18ntkLens.scanOnStartup` | boolean | `false` | Run a scan when Lens activates. |
-| `i18ntkLens.autoScanOnSave` | boolean | `false` | Run a scan after editor saves. |
-| `i18ntkLens.maxScanFiles` | number | `1000` | Maximum source files to scan. |
-| `i18ntkLens.exclude` | array | `["node_modules", ".git", ".next", "dist", "build", "coverage"]` | Folders excluded from scans. |
-| `i18ntkLens.customWrappers` | array | `[]` | Additional translation wrapper names, such as `tx`, `__`, or `_t`. |
-| `i18ntkLens.keyFormats` | array | `["dot", "snake"]` | Key formats to detect and match. Enable dot, snake, or both. |
+| Setting | Default | Description |
+|---|---|---|
+| `i18ntkLens.localeDirectory` | `./locales` | Locale files root |
+| `i18ntkLens.sourceLocale` | `en` | Source language |
+| `i18ntkLens.maxScanFiles` | `1000` | Max source files per scan |
+| `i18ntkLens.exclude` | `[node_modules, dist, …]` | Excluded directories |
+| `i18ntkLens.scanOnStartup` | `false` | Auto-scan on activation |
+| `i18ntkLens.autoScanOnSave` | `false` | Auto-scan on file save |
+| `i18ntkLens.keyFormats` | `["dot", "snake"]` | Key format conventions |
+| `i18ntkLens.customWrappers` | `[]` | Additional wrapper function names |
+| `i18ntkLens.extensionLanguage` | `follow` | Extension UI language |
 
-## Supported Layouts
+## Commands
 
-Lens auto-detects:
-
-- `locales/`
-- `i18n/`
-- `translations/`
-- `public/locales/`
-- `src/locales/`
-
-Directory-per-locale:
-
-```text
-locales/en/common.json
-locales/fr/common.json
-```
-
-Flat files:
-
-```text
-locales/en.json
-locales/fr.json
-```
-
-Nested JSON keys are flattened to dot notation. For example, `checkout.payment.title` maps to deeply nested JSON.
-
-## CLI Companion
-
-Lens focuses on inline editor feedback. For setup, analysis, validation, usage reports, completion, summary output, and Auto Translate from the terminal, install the CLI:
-
-```bash
-npm install i18ntk
-```
-
-Common CLI commands:
-
-```bash
-npx i18ntk --help
-npx i18ntk --command=analyze
-npx i18ntk --command=validate
-npx i18ntk --command=usage
-npx i18ntk --command=summary
-npx i18ntk-translate locales/en/common.json fr --report-stdout
-```
-
-If Auto Translate writes `i18ntk-reports/auto-translate/latest.json` because a provider still returned untranslated values after retry, Lens surfaces those residual keys inline during the next scan. Use the quick fix when the key should be protected instead of translated.
-
-Use i18ntk Workbench when you want the VS Code sidebar, reports, key management, setup flow, and CLI-backed Auto Translate from inside the editor.
-
-## Workbench and Lens
-
-- Install **i18ntk Lens** when you want fast inline hovers, CodeLens, warnings, and settings.
-- Install **i18ntk Workbench** when you want the sidebar, reports, key management, setup flow, and Auto Translate entry points.
-- Install both when you want the full sidebar plus inline editor feedback. Workbench owns the Activity Bar icon; Lens stays inline-only so the sidebar remains clean.
-
-## Related Tools
-
-| Tool | Purpose |
+| Command | Description |
 |---|---|
-| **i18ntk** | Zero-dependency i18n toolkit for scanning, validation, translation, reports, and runtime loading. |
-| **i18ntk Workbench** | Full VS Code localization health dashboard powered by i18ntk. |
-| **i18ntk Lens** | Lightweight inline translation hovers, diagnostics, and key navigation. |
-| **PublishGuard** | Pre-publish safety scanner for npm packages and VS Code extensions. |
-| **ContextKit** | AI coding context manager for AGENTS.md, Claude, Cursor, Copilot, Roo, and Codex files. |
+| `i18ntkLens.scanWorkspace` | Run workspace scan |
+| `i18ntkLens.openSettings` | Open settings webview |
+| `i18ntkLens.openKeyInLocaleFiles` | Navigate from key to locale definition |
 
-## Privacy
+## Previous Releases
 
-i18ntk Lens reads workspace files locally. No data is sent anywhere, and no telemetry is collected.
+See [CHANGELOG.md](./CHANGELOG.md) for full version history.
+
+## Install
+
+```bash
+# VS Code Marketplace
+# Search: i18ntk Lens by Vlad Noskov
+
+# Or via CLI
+code --install-extension VladNoskov.i18ntk-lens
+```
 
 ## License
 

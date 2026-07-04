@@ -38,7 +38,7 @@ export interface LensScanResult {
   autoTranslateResiduals: Array<{ key: string; locale: string; value: string; fileName?: string; filePath?: string; range?: TextRange }>;
 }
 
-const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx', '.vue', '.svelte', '.html']);
+const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.mts', '.cjs', '.cts', '.vue', '.svelte', '.astro', '.mdx', '.html', '.rs']);
 const MAX_SOURCE_USAGE_SCAN_BYTES = 2 * 1024 * 1024;
 const KNOWN_WRAPPERS = ['t', 'i18n.t', 'translate', '$t', 'tx', '__', '_t', '__t', 'i18n'];
 const NAMESPACE_HELPERS = [
@@ -118,6 +118,9 @@ export function findTranslationKeys(text: string, customWrappers: string[] = [],
   }
   for (const [name, namespace] of importedObjects) {
     matches.push(...findImportedLocaleObjectReads(text, name, namespace));
+  }
+  for (const match of findJsxComponentKeys(text)) {
+    matches.push(match);
   }
   return dedupe(matches).sort((a, b) => a.start - b.start);
 }
@@ -342,6 +345,29 @@ function findImportedLocaleObjectReads(text: string, name: string, namespace: st
       end,
       range: rangeFromOffsets(text, start, end)
     });
+  }
+  return matches;
+}
+
+function findJsxComponentKeys(text: string): KeyMatch[] {
+  const matches: KeyMatch[] = [];
+  const patterns = [
+    /<(?:Trans)\s[\s\S]*?\bi18nKey\s*=\s*(?:\{|)(['"`])([^'"`}]+)\1[^>]*>/g,
+    /<(?:FormattedMessage)\s[\s\S]*?\bid\s*=\s*(?:\{|)(['"`])([^'"`}]+)\1[^>]*>/g,
+    /<(?:FormattedMessage)\s[\s\S]*?\bdefaultMessage\s*=\s*(?:\{|)(['"`])([^'"`}]+)\1[^>]*>/g,
+    /<(?:t)\s[\s\S]*?\bmessage\s*=\s*(?:\{|)(['"`])([^'"`}]+)\1[^>]*>/g,
+    /<(?:Translate)\s[\s\S]*?\bid\s*=\s*(?:\{|)(['"`])([^'"`}]+)\1[^>]*>/g
+  ];
+  for (const pattern of patterns) {
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text)) !== null) {
+      const key = match[2];
+      const start = match.index + match[0].indexOf(key);
+      const end = start + key.length;
+      if (/^[A-Za-z][A-Za-z0-9._-]*(?:\.[A-Za-z][A-Za-z0-9._-]*)*$/.test(key)) {
+        matches.push({ key, dynamic: false, start, end, range: rangeFromOffsets(text, start, end) });
+      }
+    }
   }
   return matches;
 }

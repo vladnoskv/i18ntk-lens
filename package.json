@@ -2,7 +2,7 @@
   "name": "i18ntk-lens",
   "displayName": "i18ntk Lens",
   "description": "Inline i18ntk translation visibility for VS Code: hovers, CodeLens, missing-key warnings, unused-key diagnostics, and key navigation.",
-  "version": "1.1.6",
+  "version": "1.2.0",
   "publisher": "VladNoskov",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -30,7 +30,13 @@
     "workspaceContains:i18n",
     "workspaceContains:translations",
     "workspaceContains:public/locales",
-    "workspaceContains:src/locales"
+    "workspaceContains:src/locales",
+    "workspaceContains:app/i18n",
+    "workspaceContains:content/locales",
+    "workspaceContains:lang",
+    "workspaceContains:messages",
+    "workspaceContains:i18n.config.json",
+    "workspaceContains:i18ntk.config.json"
   ],
   "main": "./out/src/extension.js",
   "contributes": {
@@ -88,9 +94,16 @@
             "node_modules",
             ".git",
             ".next",
+            ".nuxt",
+            ".output",
+            ".astro",
+            ".svelte-kit",
+            ".cache",
+            "__generated__",
             "dist",
             "build",
-            "coverage"
+            "coverage",
+            "target"
           ],
           "items": {
             "type": "string"
@@ -149,7 +162,7 @@
     "compile": "tsc -p . && node scripts/copy-i18ntk-locales.js",
     "test:unit": "node --test out/test/unit/*.test.js",
     "test": "npm run compile && npm run test:unit",
-    "package": "vsce package --out ../i18ntk-lens-1.1.6.vsix"
+    "package": "vsce package --out ../i18ntk-lens-1.2.0.vsix"
   },
   "dependencies": {
     "i18ntk": "file:../i18ntk-4.4.5.tgz"

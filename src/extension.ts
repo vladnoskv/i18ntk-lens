@@ -13,6 +13,7 @@ const SELECTORS: vscode.DocumentSelector = [
   { scheme: 'file', language: 'typescriptreact' },
   { scheme: 'file', language: 'vue' },
   { scheme: 'file', language: 'svelte' },
+  { scheme: 'file', language: 'astro' },
   { scheme: 'file', language: 'html' }
 ];
 
@@ -234,7 +235,7 @@ async function resolveConfig(rootPath: string): Promise<LensConfig> {
     localeDirectory: configuredLocaleDir ? path.resolve(rootPath, configuredLocaleDir) : await detectLocaleDirectory(rootPath),
     sourceLocale: getConfigValue('i18ntkLens', 'sourceLocale', shared.sourceLocale, 'en'),
     maxScanFiles: getConfigValue('i18ntkLens', 'maxScanFiles', shared.maxScanFiles, 1000),
-    exclude: getConfigValue('i18ntkLens', 'exclude', shared.exclude, ['node_modules', '.git', '.next', 'dist', 'build', 'coverage']),
+    exclude: getConfigValue('i18ntkLens', 'exclude', shared.exclude, ['node_modules', '.git', '.next', 'dist', 'build', 'coverage', '.nuxt', '.output', '.astro', '.svelte-kit', '.cache', '__generated__']),
     keyFormats: resolveKeyFormats(shared)
   };
 }
