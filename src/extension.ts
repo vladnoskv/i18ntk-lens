@@ -14,7 +14,14 @@ const SELECTORS: vscode.DocumentSelector = [
   { scheme: 'file', language: 'vue' },
   { scheme: 'file', language: 'svelte' },
   { scheme: 'file', language: 'astro' },
-  { scheme: 'file', language: 'html' }
+  { scheme: 'file', language: 'html' },
+  { scheme: 'file', language: 'python' },
+  { scheme: 'file', language: 'go' },
+  { scheme: 'file', language: 'rust' },
+  { scheme: 'file', language: 'ruby' },
+  { scheme: 'file', language: 'java' },
+  { scheme: 'file', language: 'php' },
+  { scheme: 'file', language: 'handlebars' }
 ];
 
 const ACTION_SELECTORS: vscode.DocumentSelector = [
@@ -264,7 +271,7 @@ function resolveKeyFormats(shared: ReturnType<typeof getSharedLensSettings>): Ke
 }
 
 async function detectLocaleDirectory(rootPath: string): Promise<string> {
-  for (const candidate of ['locales', 'i18n', 'translations', 'public/locales', 'src/locales']) {
+  for (const candidate of ['locales', 'i18n', 'translations', 'public/locales', 'src/locales', 'app/i18n', 'content/locales', 'messages', 'lang', 'config/locales', 'assets/i18n', 'locale']) {
     const fullPath = path.join(rootPath, candidate);
     try {
       const stat = await fs.promises.stat(fullPath);

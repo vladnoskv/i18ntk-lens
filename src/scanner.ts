@@ -38,9 +38,9 @@ export interface LensScanResult {
   autoTranslateResiduals: Array<{ key: string; locale: string; value: string; fileName?: string; filePath?: string; range?: TextRange }>;
 }
 
-const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.mts', '.cjs', '.cts', '.vue', '.svelte', '.astro', '.mdx', '.html', '.rs']);
+const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.mts', '.cjs', '.cts', '.vue', '.svelte', '.astro', '.mdx', '.html', '.rs', '.py', '.pyx', '.pyi', '.go', '.rb', '.java', '.php', '.hbs']);
 const MAX_SOURCE_USAGE_SCAN_BYTES = 2 * 1024 * 1024;
-const KNOWN_WRAPPERS = ['t', 'i18n.t', 'translate', '$t', 'tx', '__', '_t', '__t', 'i18n'];
+const KNOWN_WRAPPERS = ['t', 'i18n.t', 'translate', '$t', 'tx', '__', '_t', '__t', 'i18n', '$_', '$tc', 'gettext', 'gettext_lazy', 'lazy_gettext', 'I18n.t', 'I18n.translate', 'I18n.l', 'I18n.localize'];
 const NAMESPACE_HELPERS = [
   'useTranslations',
   'getTranslations',
@@ -48,7 +48,10 @@ const NAMESPACE_HELPERS = [
   'useScopedI18n',
   'useI18n',
   'createTranslator',
-  'createI18n'
+  'createI18n',
+  'useTranslate',
+  'useSpeak',
+  'withTranslation'
 ];
 
 export async function scanWorkspace(config: LensConfig, customWrappers: string[] = []): Promise<LensScanResult> {
@@ -120,6 +123,9 @@ export function findTranslationKeys(text: string, customWrappers: string[] = [],
     matches.push(...findImportedLocaleObjectReads(text, name, namespace));
   }
   for (const match of findJsxComponentKeys(text)) {
+    matches.push(match);
+  }
+  for (const match of findAttributeKeys(text)) {
     matches.push(match);
   }
   return dedupe(matches).sort((a, b) => a.start - b.start);
@@ -372,6 +378,25 @@ function findJsxComponentKeys(text: string): KeyMatch[] {
   return matches;
 }
 
+function findAttributeKeys(text: string): KeyMatch[] {
+  const matches: KeyMatch[] = [];
+  const patterns = [
+    /i18nKey\s*=\s*{?['"`]([^'"`}]+)['"`]/g,
+    /t-key\s*=\s*['"]([^'"]+)['"]/g,
+    /data-i18n\s*=\s*['"]([^'"]+)['"]/g
+  ];
+  for (const pattern of patterns) {
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text)) !== null) {
+      const key = match[1];
+      const start = match.index + match[0].indexOf(key);
+      const end = start + key.length;
+      matches.push({ key, dynamic: false, start, end, range: rangeFromOffsets(text, start, end) });
+    }
+  }
+  return matches;
+}
+
 function findNamespaceBindings(text: string): Map<string, string> {
   const bindings = new Map<string, string>();
   const helpers = NAMESPACE_HELPERS.map(escapeRegExp).join('|');
@@ -618,20 +643,24 @@ function findMatchingBracket(text: string, openIndex: number): number {
   return -1;
 }
 
-export function detectSuspectedCopyFormatters(text: string): Array<{ name: string; line: number; type: string; message: string }> {
+export function detectSuspectedCopyFormatters(text: string, formatterNames?: string[]): Array<{ name: string; line: number; type: string; message: string }> {
+  const DEFAULT_COPY_FORMATTERS = ['copy', 'formatCopy', 'formatMessage', 'fmt'];
+  const names = [...new Set(['tx', ...(formatterNames && formatterNames.length > 0 ? formatterNames : DEFAULT_COPY_FORMATTERS)])];
   const formatters: Array<{ name: string; line: number; type: string; message: string }> = [];
-  const declarationPattern = /\b(?:const|let|var)\s+(tx)\s*=\s*(?:useCallback\s*\(|useMemo\s*\(|\([^)]*\)\s*=>|function\s*\()/g;
+  const altList = names.map((n) => escapeRegExp(n)).join('|');
+  const declarationPattern = new RegExp(`\\b(?:const|let|var)\\s+(${altList})\\s*=\\s*(?:useCallback\\s*\\(|useMemo\\s*\\(|\\([^)]*\\)\\s*=>|function\\s*\()`, 'g');
   let match;
   while ((match = declarationPattern.exec(text)) !== null) {
+    const detectedName = match[1];
     const afterEquals = text.slice(match.index + match[0].length, Math.min(match.index + match[0].length + 500, text.length));
     const callsTranslationRuntime = /\b(?:t|i18n\.t|\.getTranslation|translate)\s*\(/.test(afterEquals);
     if (!callsTranslationRuntime) {
       const before = text.slice(0, match.index);
       formatters.push({
-        name: 'tx',
+        name: detectedName,
         line: before.split(/\r?\n/).length,
         type: 'suspectedCopyFormatter',
-        message: `Local function "tx" does not call a known translation runtime and may be a copy formatter. Rename to "copy" or configure "copyFormatters".`,
+        message: `Local function "${detectedName}" does not call a known translation runtime and may be a copy formatter. Rename to "copy" or configure "copyFormatters" to suppress.`,
       });
     }
   }

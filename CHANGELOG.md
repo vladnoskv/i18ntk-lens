@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.0 - 2026-07-07
+
+### Added
+
+- **Python/Go/Rust/Ruby/Java/PHP/Handlebars language selectors:** Added 6 new language IDs to hover, CodeLens, and CodeAction providers.
+- **Expanded file extensions:** `.py`, `.pyx`, `.pyi`, `.go`, `.rb`, `.java`, `.php`, `.hbs` added to `SOURCE_EXTENSIONS` in `scanner.ts`.
+- **Expanded KNOWN_WRAPPERS (9 → 18):** Added `$_`, `$tc`, `gettext`, `gettext_lazy`, `lazy_gettext`, `I18n.t`, `I18n.translate`, `I18n.l`, `I18n.localize`.
+- **Expanded NAMESPACE_HELPERS (7 → 10):** Added `useTranslate` (Qwik), `useSpeak` (Qwik), `withTranslation` (react-i18next).
+- **Attribute key detection:** Added `findAttributeKeys()` detecting `i18nKey=`, `t-key=`, `data-i18n=` attributes — integrated into `findTranslationKeys()`.
+- **Configurable copy formatter detection:** `detectSuspectedCopyFormatters()` now accepts custom formatter names array, matching Workbench behavior.
+- **Expanded locale directory detection:** Added `app/i18n`, `content/locales`, `messages`, `lang`, `config/locales`, `assets/i18n`, `locale` to auto-discovery candidates.
+
+### Changed
+
+- **Version bumped to 1.3.0** for multi-framework language and pattern support.
+
 ## 1.2.0 - 2026-07-04
 
 ### Added

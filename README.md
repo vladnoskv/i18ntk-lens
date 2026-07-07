@@ -6,13 +6,15 @@
 
 i18ntk Lens adds fast inline translation visibility to VS Code. Hover values, CodeLens coverage hints, missing-key warnings, unused-key diagnostics, key navigation, and workspace settings — all close to your code. Lens is standalone and does not add an Activity Bar icon.
 
-## Latest in 1.2.0
+## Latest in 1.3.0
 
-- **JSX Component Detection**: `<Trans i18nKey>`, `<FormattedMessage id>`, `<FormattedMessage defaultMessage>`, `<t message>`, `<Translate id>` detected
-- **Astro + ESM Support**: `.astro`, `.mdx`, `.mjs`, `.mts`, `.cjs`, `.cts`, `.rs` file scanning
-- **Astro Language Support**: hover and CodeLens on `astro` language files
-- **Framework Activation**: activates on `app/i18n`, `content/locales`, `lang`, `messages` paths
-- **Exclude Defaults**: `.nuxt`, `.output`, `.astro`, `.svelte-kit`, `.cache`, `__generated__`, `target`
+- **Multi-language document selectors**: Python, Go, Rust, Ruby, Java, PHP, Handlebars added to hover, CodeLens, and CodeAction providers
+- **Expanded file scanning**: `.py`, `.pyx`, `.pyi`, `.go`, `.rb`, `.java`, `.php`, `.hbs` scanned for translation keys
+- **Extended KNOWN_WRAPPERS (9→18)**: Added `$_`, `$tc`, `gettext`, `gettext_lazy`, `I18n.t`, `I18n.translate`, `I18n.l`, `I18n.localize`
+- **Extended NAMESPACE_HELPERS (7→10)**: Added `useTranslate` (Qwik), `useSpeak` (Qwik), `withTranslation` (react-i18next)
+- **Attribute key detection**: `i18nKey=`, `t-key=`, `data-i18n=` now detected in source scanning
+- **Configurable copy formatter detection**: accepts custom formatter names array
+- **Expanded locale auto-discovery**: `app/i18n`, `content/locales`, `messages`, `lang`, `config/locales`, `assets/i18n`, `locale`
 
 ## Features
 
@@ -27,9 +29,9 @@ i18ntk Lens adds fast inline translation visibility to VS Code. Hover values, Co
 - Built-in scan from settings webview with custom wrapper support
 
 ### Scanner
-- Detects built-in wrappers: `t()`, `$t()`, `i18n.t()`, `useI18n()`, `useTranslation()`, `translate()`, `tx()`
+- Detects built-in wrappers: `t()`, `$t()`, `i18n.t()`, `useI18n()`, `useTranslation()`, `translate()`, `tx()`, `$_`, `$tc`, `gettext()`, `gettext_lazy()`, `I18n.t()`, `I18n.translate()`, `I18n.l()`, `I18n.localize()`
 - Configurable custom wrappers for project-specific patterns
-- Namespace helpers: `useTranslations("scope")` expands to scoped key matching
+- Namespace helpers: `useTranslations("scope")`, `useTranslate()`, `useSpeak()`, `withTranslation()` expand to scoped key matching
 - Imported locale JSON object detection: `import en from './locales/en.json'`
 - Dynamic template resolution from static values, arrays, and object maps
 - Snake-case key format support alongside dot notation
