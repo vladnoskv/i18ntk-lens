@@ -4,6 +4,9 @@ node_modules/**
 src/**
 test/**
 out/test/**
+out-pre-native/**
+out-native/**
+out-*/**
 **/*.map
 media/*.svg
 tsconfig.json
